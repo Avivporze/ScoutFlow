@@ -1,0 +1,39 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "players": "Players",
+    "filter": "Filter",
+    "settings": "Settings"
+  },
+  "auth": {
+    "loginTitle": "Sign in to Scout",
+    "signupTitle": "Create your account",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full Name",
+    "login": "Sign In",
+    "signup": "Create Account",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "signupLink": "Sign up",
+    "loginLink": "Sign in",
+    "signOut": "Sign out"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "An error occurred. Please try again.",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "noResults": "No results found."
+  },
+  "pages": {
+    "dashboard": "Dashboard",
+    "players": "Players",
+    "filter": "Advanced Filter",
+    "settings": "Settings"
+  }
+}

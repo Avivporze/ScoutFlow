@@ -1,0 +1,39 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "players": "Jugadores",
+    "filter": "Filtro",
+    "settings": "Ajustes"
+  },
+  "auth": {
+    "loginTitle": "Inicia sesión en Scout",
+    "signupTitle": "Crea tu cuenta",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "fullName": "Nombre completo",
+    "login": "Iniciar sesión",
+    "signup": "Crear cuenta",
+    "noAccount": "¿No tienes cuenta?",
+    "hasAccount": "¿Ya tienes cuenta?",
+    "signupLink": "Regístrate",
+    "loginLink": "Inicia sesión",
+    "signOut": "Cerrar sesión"
+  },
+  "common": {
+    "loading": "Cargando…",
+    "error": "Ocurrió un error. Inténtalo de nuevo.",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Añadir",
+    "search": "Buscar",
+    "noResults": "No se encontraron resultados."
+  },
+  "pages": {
+    "dashboard": "Panel",
+    "players": "Jugadores",
+    "filter": "Filtro avanzado",
+    "settings": "Ajustes"
+  }
+}
