@@ -36,7 +36,7 @@ export function MasterGrid() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showColPicker])
 
-  const columns = useMemo(() => buildColumns(teamsMap), [teamsMap])
+  const columns = useMemo(() => buildColumns(teamsMap, () => {}), [teamsMap])
 
   const table = useReactTable({
     data: players,

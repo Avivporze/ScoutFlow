@@ -65,13 +65,16 @@ export const HIDDEN_BY_DEFAULT: VisibilityState = {
 
 const col = createColumnHelper<Player>()
 
-export function buildColumns(teamsMap: Map<string, string>): ColumnDef<Player, unknown>[] {
+export function buildColumns(
+  teamsMap: Map<string, string>,
+  onPlayerClick: (player: Player) => void,
+): ColumnDef<Player, unknown>[] {
   return [
     // ── Default visible ──────────────────────────────────────────────────
     col.accessor(row => `${row.first_name} ${row.last_name}`, {
       id: 'fullName',
       header: 'Name',
-      cell: info => <PlayerNameCell player={info.row.original} />,
+      cell: info => <PlayerNameCell player={info.row.original} onClick={onPlayerClick} />,
     }),
     col.accessor(row => computeAge(row.date_of_birth), {
       id: 'age',
