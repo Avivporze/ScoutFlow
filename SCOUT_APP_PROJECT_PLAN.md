@@ -10,7 +10,8 @@
 | --- | ---------- | ------------------------------------------------------------------------ |
 | 1.0 | 2026-03-30 | Initial plan (with external API integration)                             |
 | 2.0 | 2026-03-30 | 8 architectural fixes applied                                            |
-| 3.0 | 2026-03-31 | **Major pivot: removed all external API integration. Pure manual CRUD MVP.** |
+| 3.0 | 2026-03-31 | Major pivot: removed all external API integration. Pure manual CRUD MVP. |
+| 4.0 | 2026-03-31 | **Added FBref stats columns + standalone Python scraper (Phase 6). Phase 1 complete.** |
 
 ---
 
@@ -18,13 +19,14 @@
 
 A web-based football (soccer) player scouting and management application for a small team of partners. It replaces scattered Excel spreadsheets and WhatsApp messages with an organized, real-time collaborative workspace.
 
-This is a **manual-entry MVP** — all player data is entered, edited, and managed by the team directly. There is no external API integration, no background syncing, and no automated data fetching.
+The app uses a **hybrid data model**: all player biographical and scouting data is entered manually via the web UI. Performance statistics (matches, goals, assists, minutes) are populated automatically by a **standalone Python scraper** that runs locally and fetches data from FBref.
 
 ### Key Goals
 
 - Centralized player database with real-time multi-user collaboration
 - Monday.com-style Master Grid as the core interface
 - Comprehensive manual add/edit form for entering player details
+- Automated stats population via local FBref scraper
 - Advanced filtering to query the player database
 - Bilingual support (English + Spanish)
 - Modern, clean, minimalist design (white background, blue accent buttons)
@@ -49,21 +51,18 @@ This is a **manual-entry MVP** — all player data is entered, edited, and manag
 | **Auth**               | Supabase Auth                  | Built-in email/password or magic link, RLS integration              |
 | **Real-time**          | Supabase Realtime              | WebSocket subscriptions — one scout's edit appears instantly for others |
 | **Storage**            | Supabase Storage               | Player photos, PDF scouting reports (1 GB free)                     |
+| **Stats Scraper**      | Python + requests + BeautifulSoup4 + supabase-py | Standalone local script that fetches player stats from FBref |
 
 ### What We Are NOT Using (And Why)
 
 | Rejected Option               | Reason                                                                        |
 | ----------------------------- | ----------------------------------------------------------------------------- |
-| **Oracle Cloud**              | No background tasks needed — pure client-to-Supabase architecture             |
-| **Supabase Edge Functions**   | No external API calls to proxy — all data is manual entry                     |
-| **pg_cron / pg_net**          | No periodic background updates needed                                         |
-| **External Football APIs**    | MVP is manual-entry only; external APIs can be added in a future version      |
+| **Oracle Cloud**              | No background tasks needed — scraper runs locally on developer's machine      |
+| **Supabase Edge Functions**   | Scraper runs locally with service role key — no server-side proxy needed      |
+| **pg_cron / pg_net**          | Scraper is manually triggered, not scheduled via database                     |
+| **External Football APIs**    | FBref is scraped directly for stats; no paid API needed                       |
 | **Electron / Tauri**          | Web app is sufficient — zero installation for partners                        |
 | **AG Grid / MUI DataGrid**    | Heavy, opinionated styling that fights custom design systems                  |
-
-### Future Option: External API Integration
-
-If the team later decides to integrate an external football API (e.g., API-Football) for automated player discovery and stats syncing, the architecture supports this cleanly. It would require adding Supabase Edge Functions as a proxy layer, a `pg_cron` schedule for background updates, and an additional "External Search" page. The database schema is designed so these additions don't require breaking changes — new columns like `external_api_id` and `stats_json` can be added without modifying existing fields.
 
 ### Future Option: Desktop Wrapper
 
@@ -94,10 +93,18 @@ If native desktop features are ever needed (system tray notifications, offline m
 │  │   Storage    │                                           │
 │  │  (1 GB free) │                                           │
 │  └──────────────┘                                           │
-└─────────────────────────────────────────────────────────────┘
+└──────────────────────┬──────────────────────────────────────┘
+                       ▲
+                       │ HTTPS (supabase-py, service role key)
+                       │
+              ┌──────────────────┐
+              │  Local Python    │
+              │  FBref Scraper   │
+              │  (your machine)  │
+              └──────────────────┘
 ```
 
-**Two services, both free tier. No Edge Functions, no cron, no external APIs.**
+**The web app (Vercel + Supabase) is free tier. The Python scraper runs on your local machine — no hosting cost.**
 
 **Total cost at launch: $0/month.**
 
@@ -136,9 +143,9 @@ The list of teams your scouting group manages or works with. Powers the "Best Fi
 
 #### `players`
 
-The core table. One row per tracked player. Powers the Master Grid. All data is manually entered via the Add/Edit Player form.
+The core table. One row per tracked player. Powers the Master Grid. Biographical data is manually entered. Stats are populated by the FBref scraper.
 
-**Basic Info:**
+**Basic Info (manual entry):**
 
 | Column              | Type         | Constraints                                          | Description                                 |
 | ------------------- | ------------ | ---------------------------------------------------- | ------------------------------------------- |
@@ -152,7 +159,7 @@ The core table. One row per tracked player. Powers the Master Grid. All data is 
 | `height_cm`         | `integer`    | NULLABLE                                             | Height in centimeters                       |
 | `weight_kg`         | `integer`    | NULLABLE                                             | Weight in kilograms                         |
 
-**Club & Position:**
+**Club & Position (manual entry):**
 
 | Column              | Type         | Constraints                                          | Description                                 |
 | ------------------- | ------------ | ---------------------------------------------------- | ------------------------------------------- |
@@ -162,18 +169,19 @@ The core table. One row per tracked player. Powers the Master Grid. All data is 
 | `contract_expiry`   | `date`       | NULLABLE                                             | Contract expiry date (for alerts)           |
 | `market_value`      | `text`       | NULLABLE                                             | Estimated market value (e.g., "€5M")        |
 
-**Agent:**
+**Agent (manual entry):**
 
 | Column              | Type         | Constraints                                          | Description                                 |
 | ------------------- | ------------ | ---------------------------------------------------- | ------------------------------------------- |
 | `agent_name`        | `text`       | NULLABLE                                             | Player's agent name                         |
 | `agent_contact`     | `text`       | NULLABLE                                             | Agent phone, email, or other contact info   |
 
-**Links & Social:**
+**Links & Social (manual entry):**
 
 | Column              | Type         | Constraints                                          | Description                                 |
 | ------------------- | ------------ | ---------------------------------------------------- | ------------------------------------------- |
 | `transfermarkt_url` | `text`       | NULLABLE                                             | Link to the player's Transfermarkt profile  |
+| `fbref_url`         | `text`       | NULLABLE                                             | Link to the player's FBref page. **The Python scraper uses this field to know which players to fetch stats for.** |
 | `social_links`      | `jsonb`      | DEFAULT '{}'                                         | Social media links (see structure below)    |
 
 **`social_links` JSONB structure:**
@@ -190,7 +198,19 @@ The core table. One row per tracked player. Powers the Master Grid. All data is 
 ```
 Only populated fields are stored — empty/null fields are omitted from the JSONB object.
 
-**Internal Management:**
+**FBref Stats (populated by Python scraper — READ-ONLY in the UI):**
+
+| Column              | Type         | Constraints                                          | Description                                 |
+| ------------------- | ------------ | ---------------------------------------------------- | ------------------------------------------- |
+| `stats_matches`     | `integer`    | DEFAULT 0                                            | Total matches played (current season)       |
+| `stats_goals`       | `integer`    | DEFAULT 0                                            | Total goals scored (current season)         |
+| `stats_assists`     | `integer`    | DEFAULT 0                                            | Total assists (current season)              |
+| `stats_minutes`     | `integer`    | DEFAULT 0                                            | Total minutes played (current season)       |
+| `stats_updated_at`  | `timestamptz`| NULLABLE                                             | When stats were last scraped by the Python script |
+
+**These 5 columns are NEVER edited via the web UI.** They are owned exclusively by the Python FBref scraper. The frontend displays them as read-only values in the Master Grid and Player Detail Panel.
+
+**Internal Management (manual entry):**
 
 | Column              | Type         | Constraints                                              | Description                                                  |
 | ------------------- | ------------ | -------------------------------------------------------- | ------------------------------------------------------------ |
@@ -219,13 +239,15 @@ Audit trail for the Dashboard's "recent activity" feed. **Populated exclusively 
 | Column       | Type         | Constraints                                       | Description                                      |
 | ------------ | ------------ | ------------------------------------------------- | ------------------------------------------------ |
 | `id`         | `uuid`       | PK, DEFAULT gen_random_uuid()                     | Log entry ID                                     |
-| `user_id`    | `uuid`       | NULLABLE, FK → profiles(id)                       | Who performed the action                         |
+| `user_id`    | `uuid`       | NULLABLE, FK → profiles(id)                       | Who performed the action. NULL for scraper updates. |
 | `player_id`  | `uuid`       | NULLABLE, FK → players(id) ON DELETE SET NULL       | Related player (if applicable)                   |
 | `action_type`| `text`       | NOT NULL                                          | 'player_added', 'player_updated', 'note_added', 'player_archived' |
 | `metadata`   | `jsonb`      | DEFAULT '{}'                                      | Additional context (e.g., which fields changed)  |
 | `created_at` | `timestamptz`| DEFAULT now()                                     | When the action occurred                         |
 
 ### 4.2 Indexes
+
+These are in `001_initial_schema.sql` (already live):
 
 ```sql
 -- Fast Master Grid queries
@@ -257,7 +279,7 @@ All tables have RLS enabled. Authenticated users can read all data (it's a share
 
 - **profiles:** Users can update their own profile only. **Exception: admins can update any profile's `role` field** (for promoting scouts to admin).
 - **internal_teams:** Only `admin` role can insert/update/delete.
-- **players:** All authenticated users can insert and update. Only `admin` can delete.
+- **players:** All authenticated users can insert and update. Only `admin` can delete. **The Python scraper uses the service role key, which bypasses RLS entirely.**
 - **player_notes:** All authenticated users can insert. Authors can update/delete their own notes.
 - **activity_log:** **No direct insert/update/delete for any user.** All writes happen via `SECURITY DEFINER` trigger functions that bypass RLS. The audit log is tamper-proof.
 
@@ -304,7 +326,7 @@ CREATE TRIGGER on_auth_user_created
 
 **Design principle:** The `activity_log` is populated **exclusively by PostgreSQL triggers**, never by frontend code. This guarantees every data change is logged regardless of source and eliminates race conditions.
 
-The trigger functions use `SECURITY DEFINER` to bypass RLS on the `activity_log` table. They use `auth.uid()` to capture the current user.
+The trigger functions use `SECURITY DEFINER` to bypass RLS on the `activity_log` table. They use `auth.uid()` to capture the current user (returns NULL for service-role calls from the scraper).
 
 ```sql
 -- ============================================================
@@ -368,7 +390,8 @@ BEGIN
     changed_fields := changed_fields || jsonb_build_object('agent_name', jsonb_build_array(OLD.agent_name, NEW.agent_name));
   END IF;
 
-  -- Only log if something meaningful changed (skip updated_at-only changes)
+  -- Only log if something meaningful changed
+  -- (Skip stats-only updates from the scraper and updated_at-only changes)
   IF changed_fields != '{}' THEN
     INSERT INTO activity_log (user_id, player_id, action_type, metadata)
     VALUES (
@@ -411,10 +434,11 @@ CREATE TRIGGER trg_note_added
   EXECUTE FUNCTION log_note_added();
 ```
 
-**What gets logged:**
-- Player added → logged (with player name)
-- Player updated (name, club, league, best_fit, status, contract, position, market_value, agent) → logged (with old→new diff)
-- Note added → logged (with first 100 chars preview)
+**What gets logged vs. silently skipped:**
+- Player added → **logged** (with player name)
+- Player updated (name, club, league, best_fit, status, contract, position, market_value, agent) → **logged** (with old→new diff)
+- Stats updated by Python scraper (only `stats_matches`, `stats_goals`, `stats_assists`, `stats_minutes`, `stats_updated_at` changed) → **silently skipped** (the trigger doesn't track these fields, so no noise in the activity feed)
+- Note added → **logged** (with first 100 chars preview)
 
 ### 4.7 Admin Bootstrap: First User Setup
 
@@ -462,6 +486,31 @@ ALTER PUBLICATION supabase_realtime ADD TABLE activity_log;
 
 **Do NOT add `profiles` or `internal_teams`** — these change rarely and don't need real-time push.
 
+### 4.9 Migration: `002_add_fbref_stats.sql` *(NEW in v4.0)*
+
+**IMPORTANT: `001_initial_schema.sql` is already live on Supabase. Do NOT modify it.** The new columns are added via a separate migration file.
+
+This migration must be created by Claude Code at the **very beginning of Phase 2** and then manually run by the developer in Supabase Dashboard → SQL Editor.
+
+```sql
+-- ============================================================
+-- Migration 002: Add FBref stats columns to players table
+-- Run this in Supabase Dashboard → SQL Editor BEFORE building Phase 2 UI
+-- ============================================================
+
+-- FBref URL — the scraper uses this to know which players to fetch
+ALTER TABLE players ADD COLUMN IF NOT EXISTS fbref_url text;
+
+-- Performance stats — populated exclusively by the Python FBref scraper
+ALTER TABLE players ADD COLUMN IF NOT EXISTS stats_matches integer DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS stats_goals integer DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS stats_assists integer DEFAULT 0;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS stats_minutes integer DEFAULT 0;
+
+-- Timestamp for when stats were last scraped
+ALTER TABLE players ADD COLUMN IF NOT EXISTS stats_updated_at timestamptz;
+```
+
 ---
 
 ## 5. Application Pages (3 Pages + Auth)
@@ -501,16 +550,21 @@ A single, powerful data table listing all tracked players. This is where 80% of 
   7. Contract Expiry (highlighted red if < 6 months)
   8. Best Fit Team (editable dropdown — pulls from `internal_teams`)
   9. Market Value
-  10. Status (active / watchlist / archived)
+  10. Matches (read-only, from `stats_matches` — populated by scraper)
+  11. Goals (read-only, from `stats_goals` — populated by scraper)
+  12. Assists (read-only, from `stats_assists` — populated by scraper)
+  13. Status (active / watchlist / archived)
 
 - **Columns (toggleable, hidden by default):**
-  11. Preferred Foot
-  12. Height
-  13. Weight
-  14. Second Nationality
-  15. Agent Name
-  16. Added By
-  17. Created At
+  14. Minutes (read-only, from `stats_minutes` — populated by scraper)
+  15. Preferred Foot
+  16. Height
+  17. Weight
+  18. Second Nationality
+  19. Agent Name
+  20. Added By
+  21. Created At
+  22. Stats Last Updated (from `stats_updated_at`)
 
 - **Features:**
   - Column sorting (click header)
@@ -522,7 +576,7 @@ A single, powerful data table listing all tracked players. This is where 80% of 
   - Pagination or infinite scroll (TanStack Virtual if 500+ rows)
   - Real-time updates via Supabase Realtime subscriptions
 
-**Add/Edit Player Modal (the ONLY way to add or update players):**
+**Add/Edit Player Modal (for manual data entry):**
 
 This is a comprehensive, multi-section form opened by:
 - Clicking "Add Player" button → empty form (create mode)
@@ -552,6 +606,7 @@ This is a comprehensive, multi-section form opened by:
    - Agent Contact (text — phone, email, or any format)
 
 4. **Links & Social**
+   - FBref URL (URL input) — **NEW: entering a valid FBref player page URL here enables automatic stats scraping for this player**
    - Transfermarkt URL (URL input)
    - Instagram (URL input)
    - X / Twitter (URL input)
@@ -565,6 +620,8 @@ This is a comprehensive, multi-section form opened by:
    - Best Fit Team (select dropdown from `internal_teams`)
    - Status (select: Active / Watchlist / Archived)
 
+**The form does NOT include fields for stats_matches, stats_goals, stats_assists, stats_minutes, or stats_updated_at.** These are owned by the Python scraper and displayed as read-only in the grid and detail panel.
+
 **Form behavior:**
 - Required fields (`first_name`, `last_name`) are validated before submission.
 - All URL fields are validated for valid URL format.
@@ -574,8 +631,9 @@ This is a comprehensive, multi-section form opened by:
 **Player Detail Panel (slide-out from right):**
 Triggered by clicking a player name. Shows:
 - Full player profile (all fields, organized by the same form sections)
+- **Stats section:** A small card/table showing Matches, Goals, Assists, Minutes with a "Last updated: X" timestamp from `stats_updated_at`. If `stats_updated_at` is NULL, show "No stats yet — add an FBref URL to enable scraping".
 - Social links rendered as clickable icons
-- Transfermarkt link as an external link button
+- Transfermarkt and FBref links as external link buttons
 - Notes thread (from `player_notes` — all partner notes in chronological order)
 - "Add Note" textarea at the bottom
 - Quick action buttons: Edit (opens the modal in edit mode), Archive, Delete (admin only)
@@ -597,6 +655,7 @@ A query builder for running complex searches against the players already in the 
   - `contract_expiry` (before date, after date, within N months)
   - `market_value` (contains — text search)
   - `height_cm`, `weight_kg` (greater than, less than, between)
+  - `stats_matches`, `stats_goals`, `stats_assists`, `stats_minutes` (greater than, less than, between)
   - `status` (equals)
   - `best_fit_team` (equals, is null)
   - `agent_name` (contains, is null / is not null)
@@ -681,11 +740,12 @@ Scout/
 │   │   ├── layout/                     # Sidebar, TopBar, PageWrapper, AuthGuard
 │   │   ├── players/                    # Player-specific components
 │   │   │   ├── PlayerFormModal.tsx      # The comprehensive Add/Edit form (multi-section)
-│   │   │   ├── PlayerDetailPanel.tsx    # Slide-out detail view
+│   │   │   ├── PlayerDetailPanel.tsx    # Slide-out detail view (includes read-only stats card)
+│   │   │   ├── PlayerStatsCard.tsx      # Read-only display of FBref stats (matches, goals, assists, mins)
 │   │   │   └── SocialLinksDisplay.tsx   # Renders social_links JSONB as clickable icons
 │   │   └── table/                      # TanStack Table wrappers
 │   │       ├── MasterGrid.tsx          # Main table component
-│   │       ├── columns.tsx             # Column definitions
+│   │       ├── columns.tsx             # Column definitions (includes read-only stats columns)
 │   │       ├── cells/                  # Custom cell renderers
 │   │       │   ├── BestFitTeamCell.tsx  # Editable dropdown
 │   │       │   ├── PlayerNameCell.tsx   # Clickable → opens detail panel
@@ -732,13 +792,21 @@ Scout/
 │   ├── main.tsx                        # Entry point
 │   └── index.css                       # Tailwind directives + global styles
 │
+├── scraper/                            # Standalone Python FBref scraper (Phase 6)
+│   ├── fbref_scraper.py                # Main scraper script
+│   ├── requirements.txt                # requests, beautifulsoup4, supabase
+│   ├── .env                            # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (gitignored)
+│   ├── .env.example                    # Placeholder template (committed)
+│   └── README.md                       # Usage instructions
+│
 ├── supabase/
 │   └── migrations/
-│       └── 001_initial_schema.sql      # Full schema: tables, indexes, RLS, triggers, realtime
+│       ├── 001_initial_schema.sql      # Full schema: tables, indexes, RLS, triggers, realtime (ALREADY LIVE)
+│       └── 002_add_fbref_stats.sql     # Adds fbref_url + stats columns to players table
 │
 ├── .env.local                          # VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY
 ├── .env.local.example                  # Template for team members (committed to git, no real values)
-├── .gitignore                          # Includes .env.local and .env*.local
+├── .gitignore                          # Includes .env.local, .env*.local, scraper/.env, node_modules, dist
 ├── tailwind.config.ts
 ├── tsconfig.json
 ├── vite.config.ts
@@ -750,30 +818,34 @@ Scout/
 
 ## 8. Implementation Roadmap (Claude Code Phases)
 
-### Phase 1: Foundation
+### Phase 1: Foundation ✅ COMPLETE
 
-1. Initialize Vite + React + TypeScript project directly in the `Scout/` directory (this IS the root — do not create a subfolder)
-2. Install and configure: Tailwind CSS, React Router, react-i18next, TanStack Query, TanStack Table, @dnd-kit/core, Lucide React
-3. Create `.gitignore` (include `.env.local`, `.env*.local`, `node_modules`, `dist`)
-4. Create `.env.local.example` with placeholder values
-5. Create `supabase.ts` client singleton
-6. Write `001_initial_schema.sql` migration file (all tables, indexes, RLS policies, triggers, realtime publication, admin bootstrap trigger)
-7. Build auth pages (Login, Sign-Up) and AuthGuard context
-8. Build layout shell (Sidebar with 4 nav items, TopBar, PageWrapper)
-9. Set up React Router with routes: `/`, `/players`, `/filter`, `/settings`
-10. Initialize git repo and make first commit
+1. ~~Initialize Vite + React + TypeScript project directly in the `Scout/` directory~~
+2. ~~Install and configure: Tailwind CSS, React Router, react-i18next, TanStack Query, TanStack Table, @dnd-kit/core, Lucide React~~
+3. ~~Create `.gitignore` and `.env.local.example`~~
+4. ~~Create `supabase.ts` client singleton~~
+5. ~~Write `001_initial_schema.sql` migration file~~
+6. ~~Build auth pages (Login, Sign-Up) and AuthGuard context~~
+7. ~~Build layout shell (Sidebar, TopBar, PageWrapper)~~
+8. ~~Set up React Router with routes~~
+9. ~~Initialize git repo and make first commit~~
+
+**Status:** All steps done. Migration `001_initial_schema.sql` is live on Supabase. Auth is working.
 
 ### Phase 2: Core — Master Grid + Player Form
 
-1. Build the `players.ts` API layer (CRUD functions)
-2. Build `usePlayers` hook with TanStack Query
-3. Build column definitions (`columns.tsx`)
-4. Build custom cell renderers (BestFitTeamCell, PositionBadge, ContractCell, StatusCell, PlayerNameCell)
-5. Assemble the MasterGrid component with sorting, filtering, column visibility
-6. Build the **PlayerFormModal** — the comprehensive multi-section Add/Edit form
-7. Build the PlayerDetailPanel (slide-out)
-8. Build the SocialLinksDisplay component
-9. Wire up Supabase Realtime for live updates
+1. **Create `002_add_fbref_stats.sql` migration** (see Section 4.9) — write the file, then the developer must manually run it in Supabase SQL Editor before proceeding.
+2. **Regenerate Supabase types** after the migration: `npx supabase gen types typescript --project-id <ref> > src/types/database.ts`
+3. Build the `players.ts` API layer (CRUD functions). **Important: `addPlayer()` and `updatePlayer()` must NOT include `stats_matches`, `stats_goals`, `stats_assists`, `stats_minutes`, or `stats_updated_at` — these fields are scraper-owned.**
+4. Build `usePlayers` hook with TanStack Query
+5. Build column definitions (`columns.tsx`) — include read-only stats columns (Matches, Goals, Assists visible by default; Minutes hidden by default)
+6. Build custom cell renderers (BestFitTeamCell, PositionBadge, ContractCell, StatusCell, PlayerNameCell)
+7. Assemble the MasterGrid component with sorting, filtering, column visibility
+8. Build the **PlayerFormModal** — includes `fbref_url` input in the Links & Social section; does NOT include stats fields
+9. Build the PlayerDetailPanel (slide-out) — includes the read-only PlayerStatsCard
+10. Build the PlayerStatsCard component (displays stats_matches/goals/assists/minutes with stats_updated_at timestamp)
+11. Build the SocialLinksDisplay component
+12. Wire up Supabase Realtime for live updates
 
 ### Phase 3: Notes + Activity
 
@@ -785,7 +857,7 @@ Scout/
 ### Phase 4: Advanced Filter
 
 1. Build the filter query builder UI (add/remove filter rows, field/operator/value selectors)
-2. Build the dynamic Supabase query generator
+2. Build the dynamic Supabase query generator — **include `stats_matches`, `stats_goals`, `stats_assists`, `stats_minutes` as filterable fields** (greater than, less than, between)
 3. Display results in a simplified grid
 4. Add CSV export functionality
 
@@ -798,6 +870,16 @@ Scout/
 5. Deploy to Vercel
 6. Testing and bug fixes
 
+### Phase 6: Local Python FBref Scraper
+
+**This phase is built outside Claude Code** (or inside it if preferred — the scraper is a standalone Python project).
+
+1. Create the `scraper/` directory with `fbref_scraper.py`, `requirements.txt`, `.env`, `.env.example`, and `README.md`
+2. Install dependencies: `pip install requests beautifulsoup4 supabase`
+3. Implement the scraper logic (see Section 13 for full specification)
+4. Test with a single player, then run for all players with `fbref_url` set
+5. Add `scraper/.env` to the root `.gitignore`
+
 ---
 
 ## 9. Key Decisions Log
@@ -805,12 +887,15 @@ Scout/
 | Decision                    | Choice             | Rationale                                                          |
 | --------------------------- | ------------------ | ------------------------------------------------------------------ |
 | Desktop vs Web              | Web (SPA)          | Zero installation for partners, instant updates, real-time native  |
-| Data entry method           | Manual only (MVP)  | Eliminates API complexity; external API can be added later         |
+| Data entry method           | Hybrid             | Manual for bio/scouting data; automated for performance stats      |
+| Stats data source           | FBref (scraped)    | Free, comprehensive, reputable — no paid API needed                |
+| Scraper architecture        | Local Python script| No hosting cost, no Edge Functions, developer runs manually        |
+| Stats ownership             | Scraper-only       | Stats fields are read-only in UI; scraper is the single source of truth |
 | Table library               | TanStack Table v8  | Headless, full design control, sort/filter/edit built-in           |
 | State management            | TanStack Query     | Server-state focused, caching, background refetch                  |
 | Social links storage        | JSONB column       | Flexible — only populated links are stored, no wasted columns      |
 | Best Fit Team               | FK to internal_teams | Dropdown powered by a manageable list, not free text             |
-| Backend hosting             | Supabase only      | No Edge Functions or cron needed for manual CRUD                   |
+| Backend hosting             | Supabase only      | Scraper uses service role key directly — no middleware needed      |
 | CSS framework               | Tailwind CSS       | Utility-first, minimal bundle, full design control                 |
 | Component library           | Custom (no shadcn) | Lean bundle, no dependency on Radix primitives                     |
 | i18n library                | react-i18next      | Industry standard, JSON files, easy for non-devs to edit           |
@@ -822,17 +907,18 @@ Scout/
 ## 10. Notes for Claude Code Development
 
 - **Always generate Supabase types** after schema changes: `npx supabase gen types typescript --project-id <ref> > src/types/database.ts`
-- **Use the anon key in the frontend.** There is no service role key in this architecture — RLS handles all access control.
+- **Use the anon key in the frontend.** The service role key is used ONLY by the Python scraper — never in the React app.
 - **TanStack Table columns are defined once in `columns.tsx`** and reused across the Master Grid and Advanced Filter results.
 - **All Supabase calls go through the `src/api/` layer** — pages and components never call Supabase directly.
 - **Real-time subscriptions are managed in `useRealtimeSync.ts`** — subscribe on mount, unsubscribe on unmount, invalidate TanStack Query cache on changes. Only `players`, `player_notes`, and `activity_log` have Realtime enabled.
 - **Activity logging is handled entirely by database triggers** — the frontend does NOT have a `logActivity()` function. The `activity.ts` file is READ-ONLY.
 - **Environment variables** must be prefixed with `VITE_` to be accessible in the frontend (Vite requirement).
 - **Admin bootstrap** must be done after the first user signs up — see Section 4.7. If the auto-promote trigger is in the migration, this is automatic.
-- **Age is computed, not stored.** The `date_of_birth` field is in the database; the age displayed in the grid is calculated at render time in the frontend (`new Date().getFullYear() - dob.getFullYear()` adjusted for month/day). This avoids stale age data.
+- **Age is computed, not stored.** The `date_of_birth` field is in the database; the age displayed in the grid is calculated at render time in the frontend.
 - **The PlayerFormModal is used for both Add and Edit.** In create mode, it opens empty. In edit mode, it receives a `player` prop and pre-fills all fields. The same component handles both cases.
+- **Stats fields are READ-ONLY in the UI.** The columns `stats_matches`, `stats_goals`, `stats_assists`, `stats_minutes`, and `stats_updated_at` must NEVER appear in the PlayerFormModal or any editable form. They are displayed in the Master Grid and PlayerDetailPanel as non-editable values. The Python scraper is the only writer.
 - **Social links are stored as a JSONB object** where only non-empty links are included. When rendering, iterate over the keys and display only the ones that have values. Use Lucide icons for each platform.
-- **No external API calls exist in this codebase.** If someone asks Claude Code to add API integration, direct them to the "Future Option" note in Section 2.
+- **The `fbref_url` field is editable in the form** (it's in the Links & Social section). When a user enters a valid FBref URL, the next scraper run will automatically fetch stats for that player.
 
 ---
 
@@ -840,37 +926,106 @@ Scout/
 
 These steps require browser interaction and cannot be done by Claude Code:
 
-**Before starting Claude Code:**
+**Before starting Claude Code (already done for Phase 1):**
 
-1. **Create a Supabase project** at app.supabase.com. Pick a name, set a database password, choose `eu-central-1` region.
-2. **Copy credentials** from Supabase Dashboard → Settings → API: the `Project URL` and the `anon public` key.
-3. **Enable Postgres extensions** in Dashboard → Database → Extensions: enable `pg_trgm` (for fuzzy name search).
+1. ~~Create a Supabase project at app.supabase.com.~~
+2. ~~Copy credentials from Supabase Dashboard → Settings → API.~~
+3. ~~Enable `pg_trgm` extension in Dashboard → Database → Extensions.~~
 
-**After Claude Code writes the migration file:**
+**At the start of Phase 2:**
 
-4. **Run the SQL migration** by pasting `001_initial_schema.sql` into Supabase Dashboard → SQL Editor and clicking "Run".
-5. **Sign up as the first user** through the app's sign-up page.
-6. **Verify admin promotion** (if auto-promote trigger is in migration) or run the manual admin SQL from Section 4.7.
+4. **Run `002_add_fbref_stats.sql`** by pasting it into Supabase Dashboard → SQL Editor and clicking "Run". This adds the `fbref_url` and stats columns to the live `players` table.
 
 **When deploying to Vercel:**
 
-7. **Connect GitHub repo to Vercel** at vercel.com. Set framework to "Vite". Add environment variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+5. **Connect GitHub repo to Vercel** at vercel.com. Set framework to "Vite". Add environment variables: `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+
+**For the Python scraper (Phase 6):**
+
+6. **Copy the Supabase Service Role key** from Dashboard → Settings → API → `service_role` `secret`. Put it in `scraper/.env`. This key bypasses RLS and should NEVER be committed to git or used in the frontend.
 
 ---
 
 ## 12. Security Model
 
-| Secret                       | Where it lives                        | Exposed to browser? | Risk |
-| ---------------------------- | ------------------------------------- | -------------------- | ---- |
-| `VITE_SUPABASE_URL`          | `.env.local` → bundled into frontend  | Yes                  | **None** — public by design (just the project URL) |
-| `VITE_SUPABASE_ANON_KEY`     | `.env.local` → bundled into frontend  | Yes                  | **None** — public by design, restricted by RLS |
-| Database password            | Supabase Dashboard only               | No                   | Never referenced in app code |
+| Secret                           | Where it lives                         | Exposed to browser? | Risk |
+| -------------------------------- | -------------------------------------- | -------------------- | ---- |
+| `VITE_SUPABASE_URL`             | `.env.local` → bundled into frontend   | Yes                  | **None** — public by design (just the project URL) |
+| `VITE_SUPABASE_ANON_KEY`        | `.env.local` → bundled into frontend   | Yes                  | **None** — public by design, restricted by RLS |
+| `SUPABASE_SERVICE_ROLE_KEY`     | `scraper/.env` only                    | **No**               | **Secret** — bypasses RLS. Used only by local Python scraper. Never in frontend code, never committed to git. |
+| Database password                | Supabase Dashboard only                | No                   | Never referenced in app code |
 
-**There are no secret keys in this architecture.** The Supabase anon key is designed to be public — all security is enforced by Row Level Security policies in PostgreSQL. There are no Edge Functions, no service role keys, and no external API keys.
+**`.gitignore` protection:** `.env.local`, `.env*.local`, and `scraper/.env` are all gitignored from the first commit. Placeholder `.env.example` files are committed as documentation.
 
-**`.gitignore` protection:** `.env.local` and `.env*.local` are gitignored from the first commit. A `.env.local.example` with placeholder values is committed as documentation.
+---
+
+## 13. Python FBref Scraper Specification
+
+### Overview
+
+A standalone Python script that runs on the developer's local machine. It queries Supabase for all players where `fbref_url IS NOT NULL`, scrapes each player's FBref page for standard stats, and updates the database via the Supabase service role key.
+
+### Tech Stack
+
+- **Python 3.10+**
+- **requests** — HTTP client for fetching FBref pages
+- **BeautifulSoup4** — HTML parser for extracting stats from FBref's table structure
+- **supabase-py** — Official Supabase Python client for reading/writing the database
+
+### FBref Compliance
+
+FBref has a published bot policy (linked in their robots.txt). The critical rule: **maximum 10 requests per minute.**
+
+To comply strictly, the scraper uses `time.sleep(6.5)` between each HTTP request. This gives ~9.2 requests/minute — safely under the 10/minute limit with buffer for network jitter.
+
+The scraper also sets a descriptive `User-Agent` header identifying itself (not pretending to be a browser).
+
+### Logic Flow
+
+```
+1. Connect to Supabase using the service role key
+2. Query: SELECT id, fbref_url FROM players WHERE fbref_url IS NOT NULL
+3. For each player:
+   a. Fetch the FBref page (GET request)
+   b. Parse the "Standard Stats" table with BeautifulSoup
+   c. Extract: matches played, goals, assists, minutes
+   d. UPDATE players SET stats_matches=X, stats_goals=Y,
+      stats_assists=Z, stats_minutes=W, stats_updated_at=now()
+      WHERE id = player_id
+   e. Print progress: "Updated: Player Name — 25 matches, 8 goals, 5 assists, 2100 min"
+   f. time.sleep(6.5)  # FBref rate limit compliance
+4. Print summary: "Done. Updated X/Y players."
+```
+
+### Environment Variables (`scraper/.env`)
+
+```bash
+SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+```
+
+### Running the Scraper
+
+```bash
+cd Scout/scraper
+pip install -r requirements.txt   # First time only
+python fbref_scraper.py
+```
+
+The scraper is designed to be run manually whenever the developer wants fresh stats. It is NOT scheduled — there is no cron job. A typical run for 50 players takes ~5.5 minutes (50 × 6.5s = 325s).
+
+### Error Handling
+
+- If a player's FBref page returns a non-200 status, the scraper logs the error and skips to the next player.
+- If BeautifulSoup fails to find the stats table (FBref changed their HTML), the scraper logs a warning and skips the player.
+- The scraper never crashes on a single player failure — it always completes the full loop.
+- At the end, it prints a summary of successes and failures.
+
+### Activity Log Behavior
+
+When the scraper updates a player's stats, the `log_player_updated` database trigger fires. However, because the trigger only tracks changes to biographical fields (name, club, league, status, etc.) and NOT stats fields, **scraper updates are silently skipped** in the activity log. This is by design — stats updates are routine and should not clutter the Dashboard feed.
 
 ---
 
 *Last updated: March 31, 2026*
-*Status: FINAL — approved for development in Claude Code*
+*Status: ACTIVE — Phase 1 complete, proceeding to Phase 2*

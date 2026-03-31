@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ChevronLeft } from 'lucide-react'
 import { usePlayers } from '@/hooks/usePlayers'
@@ -28,6 +29,12 @@ function isValidUrl(val: string): boolean {
   }
 }
 
+/** Return trimmed string or null if blank — prevents sending "" to Postgres columns that expect date/int/uuid. */
+function orNull(val: string): string | null {
+  const trimmed = val.trim()
+  return trimmed === '' ? null : trimmed
+}
+
 export function PlayerFormPage() {
   const { id } = useParams<{ id?: string }>()
   const isEdit = Boolean(id)
@@ -35,6 +42,7 @@ export function PlayerFormPage() {
   const { t } = useTranslation()
   const { players, isLoading } = usePlayers()
   const { teams } = useTeams()
+  const queryClient = useQueryClient()
 
   const existing = id ? players.find(p => p.id === id) : undefined
 
@@ -123,34 +131,34 @@ export function PlayerFormPage() {
     setErrors({})
     setSubmitting(true)
 
-    const social_links: SocialLinks = Object.fromEntries(
-      Object.entries({ instagram, youtube }).filter(([, v]) => v.trim()),
-    ) as SocialLinks
-
-    const payload = {
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      date_of_birth: dateOfBirth || null,
-      nationality: nationality.trim() || null,
-      second_nationality: secondNationality.trim() || null,
-      preferred_foot: (preferredFoot as 'Left' | 'Right' | 'Both') || null,
-      height_cm: heightCm ? Number(heightCm) : null,
-      weight_kg: weightKg ? Number(weightKg) : null,
-      current_club: currentClub.trim() || null,
-      league: league.trim() || null,
-      position: position.trim() || null,
-      contract_expiry: contractExpiry || null,
-      market_value: marketValue.trim() || null,
-      agent_name: agentName.trim() || null,
-      agent_contact: agentContact.trim() || null,
-      fbref_url: fbrefUrl.trim() || null,
-      transfermarkt_url: transfermarktUrl.trim() || null,
-      social_links,
-      best_fit_team_id: bestFitTeamId || null,
-      status,
-    }
-
     try {
+      const social_links: SocialLinks = Object.fromEntries(
+        Object.entries({ instagram, youtube }).filter(([, v]) => v.trim()),
+      ) as SocialLinks
+
+      const payload = {
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        date_of_birth: orNull(dateOfBirth),
+        nationality: orNull(nationality),
+        second_nationality: orNull(secondNationality),
+        preferred_foot: (orNull(preferredFoot) as 'Left' | 'Right' | 'Both' | null),
+        height_cm: heightCm.trim() ? Number(heightCm) : null,
+        weight_kg: weightKg.trim() ? Number(weightKg) : null,
+        current_club: orNull(currentClub),
+        league: orNull(league),
+        position: orNull(position),
+        contract_expiry: orNull(contractExpiry),
+        market_value: orNull(marketValue),
+        agent_name: orNull(agentName),
+        agent_contact: orNull(agentContact),
+        fbref_url: orNull(fbrefUrl),
+        transfermarkt_url: orNull(transfermarktUrl),
+        social_links,
+        best_fit_team_id: orNull(bestFitTeamId),
+        status,
+      }
+
       if (isEdit && id) {
         await updatePlayer(id, payload as PlayerUpdate)
         toast.success(t('toast.playerUpdated'))
@@ -158,9 +166,14 @@ export function PlayerFormPage() {
         await addPlayer(payload as PlayerInsert)
         toast.success(t('toast.playerAdded'))
       }
+
+      await queryClient.invalidateQueries({ queryKey: ['players'] })
       navigate('/players')
-    } catch {
-      toast.error(t('toast.error'))
+    } catch (err) {
+      console.error('[PlayerFormPage] save failed:', err)
+      const message =
+        err instanceof Error ? err.message : t('toast.error')
+      toast.error(message)
     } finally {
       setSubmitting(false)
     }

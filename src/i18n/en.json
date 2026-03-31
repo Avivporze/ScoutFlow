@@ -1,8 +1,10 @@
 {
   "nav": {
     "dashboard": "Dashboard",
+    "board": "Board",
     "players": "Players",
     "filter": "Filter",
+    "shortlists": "Shortlists",
     "settings": "Settings"
   },
   "auth": {

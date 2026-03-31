@@ -6,7 +6,10 @@ export async function getPlayers(): Promise<Player[]> {
     .from('players')
     .select('*')
     .order('created_at', { ascending: false })
-  if (error) throw error
+  if (error) {
+    console.error('[getPlayers]', error)
+    throw error
+  }
   return data
 }
 
@@ -16,7 +19,10 @@ export async function addPlayer(player: PlayerInsert): Promise<Player> {
     .insert(player)
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    console.error('[addPlayer]', error)
+    throw error
+  }
   return data
 }
 
@@ -27,11 +33,17 @@ export async function updatePlayer(id: string, updates: PlayerUpdate): Promise<P
     .eq('id', id)
     .select()
     .single()
-  if (error) throw error
+  if (error) {
+    console.error('[updatePlayer]', error)
+    throw error
+  }
   return data
 }
 
 export async function deletePlayer(id: string): Promise<void> {
   const { error } = await supabase.from('players').delete().eq('id', id)
-  if (error) throw error
+  if (error) {
+    console.error('[deletePlayer]', error)
+    throw error
+  }
 }

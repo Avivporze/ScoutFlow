@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       const currentUser = session?.user ?? null
       setUser(currentUser)
+      setLoading(false) // clear loading as soon as auth state is known
       if (currentUser) {
         const p = await fetchProfile(currentUser.id)
         setProfile(p)
@@ -48,21 +49,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           void i18n.changeLanguage(p.preferred_language)
         }
       }
-      setLoading(false)
     })
 
     // Keep auth state in sync after sign-in / sign-out / token refresh
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const currentUser = session?.user ?? null
       setUser(currentUser)
+      setLoading(false) // also clear here in case getSession() is slow
       if (currentUser) {
-        const p = await fetchProfile(currentUser.id)
-        setProfile(p)
-        if (p?.preferred_language) {
-          void i18n.changeLanguage(p.preferred_language)
-        }
+        // Defer profile fetch so the auth lock is released first.
+        // Making async Supabase DB calls directly inside onAuthStateChange
+        // causes a GoTrueClient deadlock that blocks all other DB operations.
+        setTimeout(async () => {
+          const p = await fetchProfile(currentUser.id)
+          setProfile(p)
+          if (p?.preferred_language) {
+            void i18n.changeLanguage(p.preferred_language)
+          }
+        }, 0)
       } else {
         setProfile(null)
       }
