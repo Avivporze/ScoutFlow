@@ -17,3 +17,8 @@ export interface SocialLinks {
 export type PlayerWithSocial = Omit<Player, 'social_links'> & {
   social_links: SocialLinks
 }
+
+export type PlayerStats = Pick<
+  Player,
+  'stats_matches' | 'stats_goals' | 'stats_assists' | 'stats_minutes' | 'stats_updated_at'
+>

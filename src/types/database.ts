@@ -89,7 +89,13 @@ export interface Database {
           agent_name: string | null
           agent_contact: string | null
           transfermarkt_url: string | null
+          fbref_url: string | null
           social_links: Json
+          stats_matches: number
+          stats_goals: number
+          stats_assists: number
+          stats_minutes: number
+          stats_updated_at: string | null
           best_fit_team_id: string | null
           status: 'active' | 'archived' | 'watchlist'
           added_by: string
@@ -114,6 +120,7 @@ export interface Database {
           agent_name?: string | null
           agent_contact?: string | null
           transfermarkt_url?: string | null
+          fbref_url?: string | null
           social_links?: Json
           best_fit_team_id?: string | null
           status?: 'active' | 'archived' | 'watchlist'
@@ -139,6 +146,7 @@ export interface Database {
           agent_name?: string | null
           agent_contact?: string | null
           transfermarkt_url?: string | null
+          fbref_url?: string | null
           social_links?: Json
           best_fit_team_id?: string | null
           status?: 'active' | 'archived' | 'watchlist'
