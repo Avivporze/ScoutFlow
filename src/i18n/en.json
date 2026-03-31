@@ -35,5 +35,17 @@
     "players": "Players",
     "filter": "Advanced Filter",
     "settings": "Settings"
+  },
+  "grid": {
+    "title": "Players",
+    "searchPlaceholder": "Search players…",
+    "addPlayer": "Add Player",
+    "columns": "Columns",
+    "noPlayers": "No players yet.",
+    "loadError": "Failed to load players. Please refresh the page.",
+    "rowCount": "{{filtered}} of {{total}} players",
+    "statsNever": "Never",
+    "statsNoData": "No stats yet — add an FBref URL to enable scraping.",
+    "statsLastUpdated": "Last updated: {{date}}"
   }
 }

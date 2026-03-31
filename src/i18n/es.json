@@ -35,5 +35,17 @@
     "players": "Jugadores",
     "filter": "Filtro avanzado",
     "settings": "Ajustes"
+  },
+  "grid": {
+    "title": "Jugadores",
+    "searchPlaceholder": "Buscar jugadores…",
+    "addPlayer": "Añadir jugador",
+    "columns": "Columnas",
+    "noPlayers": "Aún no hay jugadores.",
+    "loadError": "Error al cargar jugadores. Por favor recarga la página.",
+    "rowCount": "{{filtered}} de {{total}} jugadores",
+    "statsNever": "Nunca",
+    "statsNoData": "Sin estadísticas aún — añade una URL de FBref para activar el scraping.",
+    "statsLastUpdated": "Última actualización: {{date}}"
   }
 }

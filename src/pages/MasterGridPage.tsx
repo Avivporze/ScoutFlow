@@ -1,7 +1,10 @@
+import { MasterGrid } from '@/components/table/MasterGrid'
+import { PageWrapper } from '@/components/layout/PageWrapper'
+
 export function MasterGridPage() {
   return (
-    <div>
-      <p className="text-gray-500">Players — coming in Phase 2.</p>
-    </div>
+    <PageWrapper>
+      <MasterGrid />
+    </PageWrapper>
   )
 }
