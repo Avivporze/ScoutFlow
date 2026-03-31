@@ -1,3 +1,5 @@
+import type { Player } from '@/types/player'
+
 const POSITION_COLORS: Record<string, string> = {
   GK: 'bg-purple-100 text-purple-800',
   CB: 'bg-blue-100 text-blue-800',
@@ -17,7 +19,7 @@ const POSITION_COLORS: Record<string, string> = {
 }
 
 interface Props {
-  position: string | null
+  position: Player['position']
 }
 
 export function PositionBadge({ position }: Props) {

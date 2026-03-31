@@ -6,8 +6,8 @@ interface Props {
 
 function isExpiringSoon(dateStr: string): boolean {
   const expiry = new Date(dateStr)
-  const sixMonthsOut = new Date()
-  sixMonthsOut.setMonth(sixMonthsOut.getMonth() + 6)
+  const now = new Date()
+  const sixMonthsOut = new Date(now.getFullYear(), now.getMonth() + 6, now.getDate())
   return expiry <= sixMonthsOut
 }
 
