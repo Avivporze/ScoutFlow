@@ -43,6 +43,7 @@ export interface Database {
           avatar_url?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       internal_teams: {
         Row: {
@@ -69,6 +70,7 @@ export interface Database {
           sort_order?: number
           created_at?: string
         }
+        Relationships: []
       }
       players: {
         Row: {
@@ -154,6 +156,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       player_notes: {
         Row: {
@@ -177,6 +180,7 @@ export interface Database {
           content?: string
           created_at?: string
         }
+        Relationships: []
       }
       activity_log: {
         Row: {
@@ -190,6 +194,7 @@ export interface Database {
         // Read-only: all writes go through SECURITY DEFINER triggers — never insert/update from frontend
         Insert: never
         Update: never
+        Relationships: []
       }
     }
     Views: Record<string, never>
