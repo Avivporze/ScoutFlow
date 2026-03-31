@@ -47,5 +47,61 @@
     "statsNever": "Never",
     "statsNoData": "No stats yet — add an FBref URL to enable scraping.",
     "statsLastUpdated": "Last updated: {{date}}"
+  },
+  "playerForm": {
+    "addTitle": "Add Player",
+    "editTitle": "Edit Player",
+    "savePlayer": "Save Player",
+    "back": "Back",
+    "sections": {
+      "basicInfo": "Basic Info",
+      "clubPosition": "Club & Position",
+      "agent": "Agent",
+      "linksSocial": "Links & Social",
+      "internal": "Internal Scouting"
+    },
+    "fields": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "dateOfBirth": "Date of Birth",
+      "nationality": "Nationality",
+      "secondNationality": "Second Nationality",
+      "preferredFoot": "Preferred Foot",
+      "heightCm": "Height (cm)",
+      "weightKg": "Weight (kg)",
+      "currentClub": "Current Club",
+      "league": "League",
+      "position": "Position",
+      "contractExpiry": "Contract Expiry",
+      "marketValue": "Market Value",
+      "agentName": "Agent Name",
+      "agentContact": "Agent Contact",
+      "fbrefUrl": "FBref URL",
+      "transfermarktUrl": "Transfermarkt URL",
+      "instagram": "Instagram",
+      "youtube": "YouTube",
+      "bestFitTeam": "Best Fit Team",
+      "status": "Status",
+      "noTeam": "No team assigned"
+    },
+    "errors": {
+      "required": "This field is required",
+      "invalidUrl": "Must be a valid URL (https://...)"
+    }
+  },
+  "detail": {
+    "edit": "Edit",
+    "archive": "Archive",
+    "delete": "Delete",
+    "confirmDelete": "Delete this player? This cannot be undone.",
+    "notesPlaceholder": "Notes thread coming in Phase 3",
+    "noValue": "—"
+  },
+  "toast": {
+    "playerAdded": "Player added",
+    "playerUpdated": "Player updated",
+    "playerArchived": "Player archived",
+    "playerDeleted": "Player deleted",
+    "error": "Something went wrong. Please try again."
   }
 }

@@ -47,5 +47,61 @@
     "statsNever": "Nunca",
     "statsNoData": "Sin estadísticas aún — añade una URL de FBref para activar el scraping.",
     "statsLastUpdated": "Última actualización: {{date}}"
+  },
+  "playerForm": {
+    "addTitle": "Añadir jugador",
+    "editTitle": "Editar jugador",
+    "savePlayer": "Guardar jugador",
+    "back": "Volver",
+    "sections": {
+      "basicInfo": "Información básica",
+      "clubPosition": "Club y posición",
+      "agent": "Agente",
+      "linksSocial": "Enlaces y redes sociales",
+      "internal": "Scouting interno"
+    },
+    "fields": {
+      "firstName": "Nombre",
+      "lastName": "Apellido",
+      "dateOfBirth": "Fecha de nacimiento",
+      "nationality": "Nacionalidad",
+      "secondNationality": "Segunda nacionalidad",
+      "preferredFoot": "Pie preferido",
+      "heightCm": "Altura (cm)",
+      "weightKg": "Peso (kg)",
+      "currentClub": "Club actual",
+      "league": "Liga",
+      "position": "Posición",
+      "contractExpiry": "Vencimiento de contrato",
+      "marketValue": "Valor de mercado",
+      "agentName": "Nombre del agente",
+      "agentContact": "Contacto del agente",
+      "fbrefUrl": "URL de FBref",
+      "transfermarktUrl": "URL de Transfermarkt",
+      "instagram": "Instagram",
+      "youtube": "YouTube",
+      "bestFitTeam": "Equipo más adecuado",
+      "status": "Estado",
+      "noTeam": "Sin equipo asignado"
+    },
+    "errors": {
+      "required": "Este campo es obligatorio",
+      "invalidUrl": "Debe ser una URL válida (https://...)"
+    }
+  },
+  "detail": {
+    "edit": "Editar",
+    "archive": "Archivar",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Eliminar este jugador? Esta acción no se puede deshacer.",
+    "notesPlaceholder": "Hilo de notas disponible en la Fase 3",
+    "noValue": "—"
+  },
+  "toast": {
+    "playerAdded": "Jugador añadido",
+    "playerUpdated": "Jugador actualizado",
+    "playerArchived": "Jugador archivado",
+    "playerDeleted": "Jugador eliminado",
+    "error": "Algo salió mal. Inténtalo de nuevo."
   }
 }
