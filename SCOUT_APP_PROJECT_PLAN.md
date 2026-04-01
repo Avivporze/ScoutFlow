@@ -14,6 +14,7 @@
 | 4.0 | 2026-03-31 | **Added FBref stats columns + standalone Python scraper (Phase 6). Phase 1 complete.** |
 | 5.0 | 2026-04-01 | **Phase 6 pivot: replaced curl_cffi/requests with Playwright + playwright-stealth to bypass Cloudflare JS challenge. Phase 6 now In Progress.** |
 | 6.0 | 2026-04-01 | **Phase 6 frozen: Cloudflare Turnstile managed mode cannot be bypassed by automation. Pivot to manual stats entry for MVP.** |
+| 7.0 | 2026-04-02 | **Pre-launch Security Audit complete: Patched PostgREST injection, enforced strict auth.uid() based RLS with admin bypass. Ready for MVP Vercel Deployment.** |
 
 ---
 
@@ -860,25 +861,30 @@ Scout/
 
 **Status:** All steps done. Notes API + hook + PlayerNotesTab, Activity API + hook + PlayerActivityTab, and Dashboard page (stat cards, global activity feed, contract alert navigation) are all live.
 
-### Phase 4: Advanced Filter
+### Phase 4: Advanced Filter ✅ COMPLETE
 
 1. Build the filter query builder UI (add/remove filter rows, field/operator/value selectors)
 2. Build the dynamic Supabase query generator — **include `stats_matches`, `stats_goals`, `stats_assists`, `stats_minutes` as filterable fields** (greater than, less than, between)
 3. Display results in a simplified grid
 4. Add CSV export functionality
 
-### Phase 5: Settings + Polish
+**Status:** All steps done. Advanced filtering and UI are implemented securely with strict input sanitization.
+
+### Phase 5: Settings + Polish ✅ COMPLETE
 
 1. Build Settings page sections (Profile, Language, Team Management, User Management)
 2. Complete i18n (translate all UI strings to Spanish in `es.json`)
 3. Add toast notifications for all CRUD operations
 4. Add loading states and error handling throughout
-5. Deploy to Vercel
-6. Testing and bug fixes
+5. Finalize mobile responsiveness, TanStack Virtual grid, and @dnd-kit/core drag-and-drop column interactions
+6. Perform RLS Security Audit and lock down tables with `auth.uid()` multi-tenant isolation and Admin role bypasses
+7. Prepare for Vercel Deploy
+
+**Status:** All steps done. Settings, multi-tenant Admin RLS, and responsive drag-and-drop grid are active.
 
 ### Phase 6: Local Python FBref Scraper
 
-**Status: Frozen / On Hold**
+**Status: Frozen / On Hold (Out of scope for MVP)**
 
 > **Blocker (2026-04-01):** FBref is protected by **Cloudflare Turnstile in managed mode** — an interactive human verification challenge that cannot be bypassed by automation. The following approaches were all attempted and failed:
 > - `requests` / `cloudscraper` / `curl_cffi` with Chrome TLS impersonation → 403 (no JS execution)
@@ -1045,5 +1051,5 @@ When the scraper updates a player's stats, the `log_player_updated` database tri
 
 ---
 
-*Last updated: March 31, 2026*
-*Status: ACTIVE — Phase 1 complete, proceeding to Phase 2*
+*Last updated: April 2, 2026*
+*Status: READY FOR MVP VERCEL DEPLOYMENT — Phases 1-5 complete, Phase 6 Frozen*
