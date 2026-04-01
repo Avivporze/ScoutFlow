@@ -14,6 +14,7 @@
 | 4.0 | 2026-03-31 | **Added FBref stats columns + standalone Python scraper (Phase 6). Phase 1 complete.** |
 | 5.0 | 2026-04-01 | **Phase 6 pivot: replaced curl_cffi/requests with Playwright + playwright-stealth to bypass Cloudflare JS challenge. Phase 6 now In Progress.** |
 | 6.0 | 2026-04-01 | **Phase 6 frozen: Cloudflare Turnstile managed mode cannot be bypassed by automation. Pivot to manual stats entry for MVP.** |
+| 7.0 | 2026-04-02 | **Phase 7 complete: V2 Dashboard rebuilt with Top Performers, Pipeline, and KPI cards + Strict Security Audit performed.** |
 | 7.0 | 2026-04-02 | **Pre-launch Security Audit complete: Patched PostgREST injection, enforced strict auth.uid() based RLS with admin bypass. Ready for MVP Vercel Deployment.** |
 
 ---
@@ -904,6 +905,22 @@ Scout/
 4. ~~Test with a single player, then run for all players with `fbref_url` set~~ — blocked by Turnstile
 5. Add `scraper/.env` to the root `.gitignore` ✅
 
+### Phase 7: V2 Dashboard Rebuild ✅ COMPLETE
+
+**Status:** All steps done. The dashboard was upgraded from generic scaffolding to a scout-focused V2 interface.
+
+1. **Cleanup:** Removed dead "Notes" and "Contract Alert" widgets.
+2. **New KPI Cards:** Built optimized aggregate cards (Total Players, On Watchlist, Teams Scouted, Countries Scouted).
+3. **New Widgets:** 
+   - `TopPerformersWidget.tsx` (Sorting by stats)
+   - `RecentProspectsWidget.tsx` (Filtering by watchlist status)
+   - `DepthPipelineWidget.tsx` (Tailwind-only multi-color bar graph of positional clusters)
+4. **Security Audit Executed:**
+   - **Data Minimization:** Explicit `.select('id, first_name...')` used everywhere instead of `.select('*')` to prevent leaking full rows.
+   - **PostgREST Vulnerabilities:** Used strict chained methods (`.eq`, `.neq`, `.not_null`) instead of concatenated schema queries.
+   - **Error Handling:** Obfuscated all PostgREST schema errors from bubbling to the client console (`throw new Error('Generic message')`).
+   - **Type Safety:** Defined mapped TypeScript interfaces (`TopPerformer`, `RecentProspect`) mirroring exact lightweight payloads.
+
 ---
 
 ## 9. Key Decisions Log
@@ -1052,4 +1069,4 @@ When the scraper updates a player's stats, the `log_player_updated` database tri
 ---
 
 *Last updated: April 2, 2026*
-*Status: READY FOR MVP VERCEL DEPLOYMENT — Phases 1-5 complete, Phase 6 Frozen*
+*Status: READY FOR MVP VERCEL DEPLOYMENT — Phases 1-5 & 7 complete, Phase 6 Frozen*

@@ -1,11 +1,12 @@
-// src/pages/DashboardPage.tsx
-import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, ChevronRight, MessageSquare, Users } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import { es as esLocale } from 'date-fns/locale'
 import { useDashboardStats, useRecentActivity } from '@/hooks/useDashboard'
 import type { ActivityWithDetails } from '@/api/dashboard'
+import { TopPerformersWidget } from '@/components/dashboard/TopPerformersWidget'
+import { RecentProspectsWidget } from '@/components/dashboard/RecentProspectsWidget'
+import { DepthPipelineWidget } from '@/components/dashboard/DepthPipelineWidget'
+import { Users, Eye, Globe, Shield } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
+import { es as esLocale } from 'date-fns/locale'
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation()
@@ -28,11 +29,11 @@ export function DashboardPage() {
       <h1 className="text-xl font-semibold text-gray-900">{t('dashboard.title')}</h1>
 
       {/* ── Stat Cards ───────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
         {/* Total Players */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 ring-1 ring-blue-100">
               <Users size={20} className="text-blue-600" />
             </div>
             <div>
@@ -41,59 +42,68 @@ export function DashboardPage() {
               ) : (
                 <p className="text-2xl font-bold text-gray-900">{stats.totalPlayers}</p>
               )}
-              <p className="text-sm text-gray-500">{t('dashboard.totalPlayers')}</p>
+              <p className="text-sm font-medium text-gray-500">{t('dashboard.totalPlayers')}</p>
             </div>
           </div>
         </div>
 
-        {/* Recent Notes */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5">
+        {/* Watchlist */}
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50">
-              <MessageSquare size={20} className="text-blue-600" />
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 ring-1 ring-purple-100">
+              <Eye size={20} className="text-purple-600" />
             </div>
             <div>
               {statsLoading ? (
                 <div className="h-7 w-14 animate-pulse rounded bg-gray-100" />
               ) : (
-                <p className="text-2xl font-bold text-gray-900">{stats.recentNotesCount}</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.watchlistCount}</p>
               )}
-              <p className="text-sm text-gray-500">{t('dashboard.notesLast7')}</p>
+              <p className="text-sm font-medium text-gray-500">{t('dashboard.watchlistCount')}</p>
             </div>
           </div>
         </div>
 
-        {/* Contract Alerts — amber + clickable */}
-        <Link
-          to="/players?filter=contract_alert"
-          className="group rounded-lg border border-amber-200 bg-amber-50 p-5 transition-colors hover:bg-amber-100"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-amber-100 transition-colors group-hover:bg-amber-200">
-                <AlertTriangle size={20} className="text-amber-600" />
-              </div>
-              <div>
-                {statsLoading ? (
-                  <div className="h-7 w-14 animate-pulse rounded bg-amber-100" />
-                ) : (
-                  <p
-                    className={`text-2xl font-bold ${
-                      stats.contractAlertsCount > 0 ? 'text-amber-700' : 'text-gray-400'
-                    }`}
-                  >
-                    {stats.contractAlertsCount}
-                  </p>
-                )}
-                <p className="text-sm text-amber-700">{t('dashboard.contractAlerts')}</p>
-              </div>
+        {/* Countries Scouted */}
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 ring-1 ring-emerald-100">
+              <Globe size={20} className="text-emerald-600" />
             </div>
-            <ChevronRight
-              size={18}
-              className="flex-shrink-0 text-amber-400 transition-colors group-hover:text-amber-600"
-            />
+            <div>
+              {statsLoading ? (
+                <div className="h-7 w-14 animate-pulse rounded bg-gray-100" />
+              ) : (
+                <p className="text-2xl font-bold text-gray-900">{stats.countriesScouted}</p>
+              )}
+              <p className="text-sm font-medium text-gray-500">{t('dashboard.countriesScouted')}</p>
+            </div>
           </div>
-        </Link>
+        </div>
+
+        {/* Teams Scouted */}
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-indigo-50 ring-1 ring-indigo-100">
+              <Shield size={20} className="text-indigo-600" />
+            </div>
+            <div>
+              {statsLoading ? (
+                <div className="h-7 w-14 animate-pulse rounded bg-gray-100" />
+              ) : (
+                <p className="text-2xl font-bold text-gray-900">{stats.teamsScouted}</p>
+              )}
+              <p className="text-sm font-medium text-gray-500">{t('dashboard.teamsScouted')}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Dashboard Widgets ───────────────────────────────────────── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <DepthPipelineWidget />
+        <TopPerformersWidget />
+        <RecentProspectsWidget />
       </div>
 
       {/* ── Activity Feed ─────────────────────────────────────── */}

@@ -111,8 +111,16 @@
   "dashboard": {
     "title": "Panel",
     "totalPlayers": "Total de jugadores",
+    "topPerformers": "Mejores Jugadores",
+    "goals": "Goles",
+    "assists": "Asistencias",
+    "pipeline": "Pipeline de Posiciones",
+    "recentlyAdded": "Añadidos Recientemente",
+    "age": "Edad",
     "notesLast7": "Notas (últimos 7 días)",
-    "contractAlerts": "Alertas de contrato",
+    "watchlistCount": "En Seguimiento",
+    "teamsScouted": "Equipos Seguidos",
+    "countriesScouted": "Países",
     "recentActivity": "Actividad reciente",
     "noActivity": "Aún no hay actividad.",
     "system": "Sistema",
@@ -123,6 +131,22 @@
       "note_added": "añadió una nota sobre",
       "player_archived": "archivó"
     }
+  },
+  "positions": {
+    "GK": "Portero",
+    "CB": "Defensa Central",
+    "RB": "Lateral Derecho",
+    "LB": "Lateral Izquierdo",
+    "CM": "Centrocampista",
+    "CDM": "Medio Centro Def",
+    "CAM": "Medio Ofensivo",
+    "RM": "Interior Derecho",
+    "LM": "Interior Izquierdo",
+    "RW": "Extremo Derecho",
+    "LW": "Extremo Izquierdo",
+    "ST": "Delantero",
+    "CF": "Mediapunta",
+    "Unknown": "Desconocido"
   },
   "columnHeaders": {
     "name": "Nombre",

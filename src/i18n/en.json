@@ -111,8 +111,16 @@
   "dashboard": {
     "title": "Dashboard",
     "totalPlayers": "Total Players",
+    "topPerformers": "Top Performers",
+    "goals": "Goals",
+    "assists": "Assists",
+    "pipeline": "Positional Pipeline",
+    "recentlyAdded": "Recently Added",
+    "age": "Age",
     "notesLast7": "Notes (last 7 days)",
-    "contractAlerts": "Contract Alerts",
+    "watchlistCount": "On Watchlist",
+    "teamsScouted": "Teams Scouted",
+    "countriesScouted": "Countries",
     "recentActivity": "Recent Activity",
     "noActivity": "No activity yet.",
     "system": "System",
@@ -123,6 +131,22 @@
       "note_added": "added a note on",
       "player_archived": "archived"
     }
+  },
+  "positions": {
+    "GK": "Goalkeeper",
+    "CB": "Center Back",
+    "RB": "Right Back",
+    "LB": "Left Back",
+    "CM": "Midfielder",
+    "CDM": "Defensive Mid",
+    "CAM": "Attacking Mid",
+    "RM": "Right Mid",
+    "LM": "Left Mid",
+    "RW": "Right Winger",
+    "LW": "Left Winger",
+    "ST": "Striker",
+    "CF": "Center Forward",
+    "Unknown": "Unknown"
   },
   "columnHeaders": {
     "name": "Name",
