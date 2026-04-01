@@ -12,6 +12,8 @@
 | 2.0 | 2026-03-30 | 8 architectural fixes applied                                            |
 | 3.0 | 2026-03-31 | Major pivot: removed all external API integration. Pure manual CRUD MVP. |
 | 4.0 | 2026-03-31 | **Added FBref stats columns + standalone Python scraper (Phase 6). Phase 1 complete.** |
+| 5.0 | 2026-04-01 | **Phase 6 pivot: replaced curl_cffi/requests with Playwright + playwright-stealth to bypass Cloudflare JS challenge. Phase 6 now In Progress.** |
+| 6.0 | 2026-04-01 | **Phase 6 frozen: Cloudflare Turnstile managed mode cannot be bypassed by automation. Pivot to manual stats entry for MVP.** |
 
 ---
 
@@ -51,7 +53,7 @@ The app uses a **hybrid data model**: all player biographical and scouting data 
 | **Auth**               | Supabase Auth                  | Built-in email/password or magic link, RLS integration              |
 | **Real-time**          | Supabase Realtime              | WebSocket subscriptions — one scout's edit appears instantly for others |
 | **Storage**            | Supabase Storage               | Player photos, PDF scouting reports (1 GB free)                     |
-| **Stats Scraper**      | Python + requests + BeautifulSoup4 + supabase-py | Standalone local script that fetches player stats from FBref |
+| **Stats Scraper**      | Python + Playwright + playwright-stealth + BeautifulSoup4 + supabase-py | Standalone local script that fetches player stats from FBref. Playwright required to pass Cloudflare's JS challenge. |
 
 ### What We Are NOT Using (And Why)
 
@@ -832,7 +834,7 @@ Scout/
 
 **Status:** All steps done. Migration `001_initial_schema.sql` is live on Supabase. Auth is working.
 
-### Phase 2: Core — Master Grid + Player Form
+### Phase 2: Core — Master Grid + Player Form ✅ COMPLETE
 
 1. **Create `002_add_fbref_stats.sql` migration** (see Section 4.9) — write the file, then the developer must manually run it in Supabase SQL Editor before proceeding.
 2. **Regenerate Supabase types** after the migration: `npx supabase gen types typescript --project-id <ref> > src/types/database.ts`
@@ -847,12 +849,16 @@ Scout/
 11. Build the SocialLinksDisplay component
 12. Wire up Supabase Realtime for live updates
 
-### Phase 3: Notes + Activity
+**Status:** All steps done. Master Grid, PlayerFormPage, PlayerDetailPanel, PlayerStatsCard, SocialLinksDisplay, and Realtime sync are all live.
+
+### Phase 3: Notes + Activity ✅ COMPLETE
 
 1. Build `notes.ts` and `activity.ts` API layers
 2. Build `useNotes` and `useActivity` hooks
 3. Add the notes thread to the PlayerDetailPanel
 4. Build the Dashboard page (stats cards, activity feed, contract alerts)
+
+**Status:** All steps done. Notes API + hook + PlayerNotesTab, Activity API + hook + PlayerActivityTab, and Dashboard page (stat cards, global activity feed, contract alert navigation) are all live.
 
 ### Phase 4: Advanced Filter
 
@@ -872,13 +878,25 @@ Scout/
 
 ### Phase 6: Local Python FBref Scraper
 
-**This phase is built outside Claude Code** (or inside it if preferred — the scraper is a standalone Python project).
+**Status: Frozen / On Hold**
 
-1. Create the `scraper/` directory with `fbref_scraper.py`, `requirements.txt`, `.env`, `.env.example`, and `README.md`
-2. Install dependencies: `pip install requests beautifulsoup4 supabase`
-3. Implement the scraper logic (see Section 13 for full specification)
-4. Test with a single player, then run for all players with `fbref_url` set
-5. Add `scraper/.env` to the root `.gitignore`
+> **Blocker (2026-04-01):** FBref is protected by **Cloudflare Turnstile in managed mode** — an interactive human verification challenge that cannot be bypassed by automation. The following approaches were all attempted and failed:
+> - `requests` / `cloudscraper` / `curl_cffi` with Chrome TLS impersonation → 403 (no JS execution)
+> - Manual `cf_clearance` cookie injection → 403 (cookie TTL too short, tied to original browser session)
+> - Playwright (headless Chromium) + `playwright-stealth` → Turnstile loop (headless detected)
+> - Playwright + real Chrome binary (`channel="chrome"`) + persistent context + `--disable-blink-features=AutomationControlled` + manual terminal trigger → Persistent Turnstile loop / browser connection lost
+>
+> **Decision:** Pivot to **manual stats entry** for MVP to unblock frontend development. Phase 6 is deferred until a viable bypass (e.g., scraping API with Turnstile solver) is evaluated post-MVP.
+
+1. Create the `scraper/` directory with `scraper.py`, `requirements.txt`, `.env`, `.env.example`, and `README.md` ✅
+2. Install dependencies:
+   ```bash
+   pip install playwright playwright-stealth beautifulsoup4 supabase python-dotenv
+   playwright install chrome
+   ```
+3. Implement the scraper logic with Playwright session manager ✅
+4. ~~Test with a single player, then run for all players with `fbref_url` set~~ — blocked by Turnstile
+5. Add `scraper/.env` to the root `.gitignore` ✅
 
 ---
 
