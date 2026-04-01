@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   flexRender,
   getCoreRowModel,
@@ -16,7 +16,11 @@ import { PlayerDetailPanel } from '@/components/players/PlayerDetailPanel'
 import { buildColumns, HIDDEN_BY_DEFAULT, playerSearchFilter } from './columns'
 import type { Player } from '@/types/player'
 
-export function MasterGrid() {
+interface MasterGridProps {
+  contractAlertMode?: boolean
+}
+
+export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
   const { players, isLoading, error } = usePlayers()
   const { teamsMap } = useTeams()
 
@@ -25,6 +29,23 @@ export function MasterGrid() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [showColPicker, setShowColPicker] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
+
+  const navigate = useNavigate()
+
+  // When contractAlertMode is active, pre-filter to players whose contracts
+  // expire within the next 12 months (future-only, non-archived).
+  const displayPlayers = useMemo(() => {
+    if (!contractAlertMode) return players
+    const now = new Date()
+    const cutoff = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate())
+    return players.filter(
+      (p) =>
+        p.contract_expiry &&
+        new Date(p.contract_expiry) > now &&
+        new Date(p.contract_expiry) <= cutoff &&
+        p.status !== 'archived',
+    )
+  }, [players, contractAlertMode])
 
   const colPickerRef = useRef<HTMLDivElement>(null)
 
@@ -45,7 +66,7 @@ export function MasterGrid() {
   )
 
   const table = useReactTable({
-    data: players,
+    data: displayPlayers,
     columns,
     state: { sorting, columnVisibility, globalFilter },
     onSortingChange: setSorting,
@@ -111,6 +132,23 @@ export function MasterGrid() {
             </Link>
           </div>
         </div>
+
+        {/* Contract alert filter banner */}
+        {contractAlertMode && (
+          <div className="flex items-center justify-between rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+            <span>
+              Contract alert filter active — showing players with contracts expiring within 12
+              months.
+            </span>
+            <button
+              onClick={() => navigate('/players')}
+              className="ml-4 flex-shrink-0 font-medium text-amber-600 hover:text-amber-800"
+              aria-label="Clear contract alert filter"
+            >
+              ✕ Clear
+            </button>
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative max-w-sm">
@@ -194,7 +232,7 @@ export function MasterGrid() {
         {/* Row count */}
         {!isLoading && (
           <p className="text-xs text-gray-400">
-            {table.getFilteredRowModel().rows.length} of {players.length} players
+            {table.getFilteredRowModel().rows.length} of {displayPlayers.length} players
           </p>
         )}
       </div>
