@@ -22,7 +22,7 @@ export function useDashboardStats() {
 
   return {
     stats: query.data ?? EMPTY_STATS,
-    isLoading: query.isLoading,
+    isLoading: query.isPending,
     isError: query.isError,
   }
 }
@@ -36,7 +36,7 @@ export function useRecentActivity(limit = 20) {
 
   return {
     activity: query.data ?? ([] as ActivityWithDetails[]),
-    isLoading: query.isLoading,
+    isLoading: query.isPending,
     isError: query.isError,
   }
 }
