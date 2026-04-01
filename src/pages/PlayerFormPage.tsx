@@ -102,7 +102,8 @@ export function PlayerFormPage() {
   if (isEdit && isLoading) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-gray-500">
-        Loading…
+        <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-transparent" />
+        {t('common.loading')}
       </div>
     )
   }

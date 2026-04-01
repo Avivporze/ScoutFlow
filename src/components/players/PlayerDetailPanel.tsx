@@ -86,7 +86,7 @@ export function PlayerDetailPanel({ player, onClose }: Props) {
       />
 
       {/* Panel */}
-      <div className="fixed inset-y-0 right-0 z-50 flex w-[480px] flex-col overflow-hidden bg-white shadow-xl">
+      <div className="fixed inset-y-0 right-0 z-50 flex w-full sm:w-[480px] flex-col overflow-hidden bg-white shadow-xl">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-2">
           <h2 className="text-lg font-semibold text-gray-900">

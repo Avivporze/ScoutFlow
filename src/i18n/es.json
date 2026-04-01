@@ -3,6 +3,7 @@
     "dashboard": "Panel",
     "players": "Jugadores",
     "filter": "Filtro",
+    "shortlists": "Filtro avanzado",
     "settings": "Ajustes"
   },
   "auth": {
@@ -23,6 +24,7 @@
     "loading": "Cargando…",
     "error": "Ocurrió un error. Inténtalo de nuevo.",
     "save": "Guardar",
+    "saving": "Guardando…",
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "edit": "Editar",
@@ -94,14 +96,168 @@
     "archive": "Archivar",
     "delete": "Eliminar",
     "confirmDelete": "¿Eliminar este jugador? Esta acción no se puede deshacer.",
-    "notesPlaceholder": "Hilo de notas disponible en la Fase 3",
+    "overview": "Resumen",
+    "notes": "Notas",
+    "activity": "Actividad",
+    "noNotes": "Aún no hay notas. ¡Inicia la conversación!",
+    "addNotePlaceholder": "Escribe una nota…",
+    "postNote": "Publicar nota",
     "noValue": "—"
+  },
+  "sidebar": {
+    "collapse": "Contraer",
+    "expand": "Expandir"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "totalPlayers": "Total de jugadores",
+    "notesLast7": "Notas (últimos 7 días)",
+    "contractAlerts": "Alertas de contrato",
+    "recentActivity": "Actividad reciente",
+    "noActivity": "Aún no hay actividad.",
+    "system": "Sistema",
+    "aPlayer": "un jugador",
+    "actions": {
+      "player_added": "añadió",
+      "player_updated": "actualizó",
+      "note_added": "añadió una nota sobre",
+      "player_archived": "archivó"
+    }
+  },
+  "columnHeaders": {
+    "name": "Nombre",
+    "age": "Edad",
+    "nationality": "Nacionalidad",
+    "position": "Posición",
+    "club": "Club",
+    "league": "Liga",
+    "contract": "Contrato",
+    "bestFit": "Mejor Encaje",
+    "value": "Valor",
+    "matches": "P",
+    "goals": "G",
+    "assists": "A",
+    "status": "Estado",
+    "minutes": "Min",
+    "foot": "Pie",
+    "height": "Altura",
+    "weight": "Peso",
+    "secondNat": "2ª Nac.",
+    "agent": "Agente",
+    "addedBy": "Añadido Por",
+    "added": "Añadido",
+    "statsUpdated": "Stats Actualiz."
+  },
+  "filter": {
+    "title": "Filtro avanzado",
+    "exportCsv": "Exportar CSV",
+    "clearAll": "Borrar filtros",
+    "labels": {
+      "name": "Nombre",
+      "position": "Posición",
+      "status": "Estado",
+      "foot": "Pie",
+      "nationality": "Nacionalidad",
+      "league": "Liga",
+      "age": "Edad",
+      "goals": "Goles",
+      "assists": "Asistencias",
+      "matches": "Partidos"
+    },
+    "placeholders": {
+      "searchPlayers": "Buscar jugadores…",
+      "nationality": "ej. Español",
+      "league": "ej. La Liga",
+      "min": "Mín",
+      "max": "Máx"
+    },
+    "options": {
+      "allPositions": "Todas las posiciones",
+      "allStatuses": "Todos los estados",
+      "anyFoot": "Cualquier pie",
+      "active": "Activo",
+      "watchlist": "Seguimiento",
+      "archived": "Archivado",
+      "left": "Izquierdo",
+      "right": "Derecho",
+      "both": "Ambos"
+    },
+    "results": {
+      "playerFound": "{{count}} jugador encontrado",
+      "playersFound": "{{count}} jugadores encontrados",
+      "noMatch": "Ningún jugador coincide con estos filtros.",
+      "empty": "Aún no hay jugadores en la base de datos.",
+      "loadError": "Error al cargar jugadores. Por favor recarga la página."
+    }
   },
   "toast": {
     "playerAdded": "Jugador añadido",
     "playerUpdated": "Jugador actualizado",
     "playerArchived": "Jugador archivado",
     "playerDeleted": "Jugador eliminado",
+    "noteAdded": "Nota añadida",
     "error": "Algo salió mal. Inténtalo de nuevo."
+  },
+  "settings": {
+    "title": "Ajustes",
+    "tabs": {
+      "profile": "Perfil",
+      "teams": "Gestión de equipos",
+      "users": "Gestión de usuarios",
+      "export": "Exportar datos"
+    },
+    "profile": {
+      "title": "Tu perfil",
+      "description": "Administra tu información personal y preferencias.",
+      "fullName": "Nombre completo",
+      "email": "Correo electrónico",
+      "emailHint": "El correo no se puede cambiar",
+      "avatarUrl": "URL del avatar",
+      "avatarUrlHint": "Pega un enlace directo a tu imagen de perfil",
+      "language": "Idioma preferido",
+      "english": "Inglés",
+      "spanish": "Español",
+      "saveChanges": "Guardar cambios",
+      "saved": "Perfil actualizado"
+    },
+    "teams": {
+      "title": "Equipos internos",
+      "description": "Gestiona los equipos que aparecen en el selector \"Mejor Encaje\" en toda la app.",
+      "addTeam": "Añadir equipo",
+      "teamName": "Nombre del equipo",
+      "league": "Liga",
+      "country": "País",
+      "noTeams": "Aún no hay equipos. Añade el primero arriba.",
+      "confirmDelete": "¿Eliminar este equipo? Los jugadores asignados perderán su equipo asignado.",
+      "added": "Equipo añadido",
+      "updated": "Equipo actualizado",
+      "deleted": "Equipo eliminado",
+      "moveUp": "Subir",
+      "moveDown": "Bajar",
+      "adminOnly": "Solo los administradores pueden gestionar equipos."
+    },
+    "users": {
+      "title": "Usuarios",
+      "description": "Visualiza todos los usuarios registrados y gestiona sus roles.",
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "role": "Rol",
+      "joined": "Registrado",
+      "admin": "Administrador",
+      "scout": "Scout",
+      "roleChanged": "Rol actualizado",
+      "cannotChangeSelf": "No puedes cambiar tu propio rol.",
+      "adminOnly": "Solo los administradores pueden gestionar usuarios."
+    },
+    "export": {
+      "title": "Exportar datos",
+      "description": "Exporta toda tu base de datos de jugadores como archivo de respaldo.",
+      "exportCsv": "Exportar como CSV",
+      "exportJson": "Exportar como JSON",
+      "exporting": "Exportando…",
+      "success": "Exportación completada — archivo descargado",
+      "noData": "No hay datos de jugadores para exportar."
+    }
   }
 }
+

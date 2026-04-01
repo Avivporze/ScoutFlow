@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { LogOut } from 'lucide-react'
+import { LogOut, Menu } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { Button } from '@/components/ui/Button'
 
@@ -11,7 +11,11 @@ const pathTitleKey: Record<string, string> = {
   '/settings': 'pages.settings',
 }
 
-export function TopBar() {
+interface TopBarProps {
+  onMenuClick?: () => void
+}
+
+export function TopBar({ onMenuClick }: TopBarProps) {
   const { pathname } = useLocation()
   const { t } = useTranslation()
   const { profile, signOut } = useAuth()
@@ -23,8 +27,16 @@ export function TopBar() {
   }
 
   return (
-    <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-6">
-      <h1 className="text-lg font-semibold text-gray-900">{t(titleKey)}</h1>
+    <header className="flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 sm:px-6">
+      <div className="flex items-center gap-3">
+        <button 
+          onClick={onMenuClick}
+          className="sm:hidden -ml-2 p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
+        >
+          <Menu size={20} />
+        </button>
+        <h1 className="text-lg font-semibold text-gray-900">{t(titleKey)}</h1>
+      </div>
 
       <div className="flex items-center gap-4">
         {profile && (

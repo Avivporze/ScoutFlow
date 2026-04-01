@@ -68,102 +68,103 @@ const col = createColumnHelper<Player>()
 export function buildColumns(
   teamsMap: Map<string, string>,
   onPlayerClick: (player: Player) => void,
+  t: (key: string) => string,
 ): ColumnDef<Player, unknown>[] {
   return [
     // ── Default visible ──────────────────────────────────────────────────
     col.accessor(row => `${row.first_name} ${row.last_name}`, {
       id: 'fullName',
-      header: 'Name',
+      header: t('columnHeaders.name'),
       cell: info => <PlayerNameCell player={info.row.original} onClick={onPlayerClick} />,
     }),
     col.accessor(row => computeAge(row.date_of_birth), {
       id: 'age',
-      header: 'Age',
+      header: t('columnHeaders.age'),
       cell: info => info.getValue() ?? '—',
     }),
     col.accessor('nationality', {
-      header: 'Nationality',
+      header: t('columnHeaders.nationality'),
       cell: info => info.getValue() ?? '—',
     }),
     col.accessor('position', {
-      header: 'Position',
+      header: t('columnHeaders.position'),
       cell: info => <PositionBadge position={info.getValue()} />,
     }),
     col.accessor('current_club', {
-      header: 'Club',
+      header: t('columnHeaders.club'),
       cell: info => info.getValue() ?? '—',
     }),
     col.accessor('league', {
-      header: 'League',
+      header: t('columnHeaders.league'),
       cell: info => info.getValue() ?? '—',
     }),
     col.accessor('contract_expiry', {
-      header: 'Contract',
+      header: t('columnHeaders.contract'),
       cell: info => <ContractCell contractExpiry={info.getValue()} />,
     }),
     col.accessor('best_fit_team_id', {
-      header: 'Best Fit',
+      header: t('columnHeaders.bestFit'),
       cell: info => <BestFitTeamCell teamId={info.getValue()} teamsMap={teamsMap} />,
     }),
     col.accessor('market_value', {
-      header: 'Value',
+      header: t('columnHeaders.value'),
       cell: info => info.getValue() ?? '—',
     }),
     col.accessor('stats_matches', {
-      header: 'M',
+      header: t('columnHeaders.matches'),
       cell: info => statDisplay(info.getValue(), info.row.original.stats_updated_at),
     }),
     col.accessor('stats_goals', {
-      header: 'G',
+      header: t('columnHeaders.goals'),
       cell: info => statDisplay(info.getValue(), info.row.original.stats_updated_at),
     }),
     col.accessor('stats_assists', {
-      header: 'A',
+      header: t('columnHeaders.assists'),
       cell: info => statDisplay(info.getValue(), info.row.original.stats_updated_at),
     }),
     col.accessor('status', {
-      header: 'Status',
+      header: t('columnHeaders.status'),
       cell: info => <StatusCell status={info.getValue()} />,
     }),
     // ── Hidden by default ────────────────────────────────────────────────
     col.accessor('stats_minutes', {
-      header: 'Min',
+      header: t('columnHeaders.minutes'),
       cell: info => statDisplay(info.getValue(), info.row.original.stats_updated_at),
     }),
     col.accessor('preferred_foot', {
-      header: 'Foot',
+      header: t('columnHeaders.foot'),
       cell: info => info.getValue() ?? '—',
     }),
     col.accessor('height_cm', {
-      header: 'Height',
+      header: t('columnHeaders.height'),
       cell: info => {
         const v = info.getValue()
         return v !== null ? `${v} cm` : '—'
       },
     }),
     col.accessor('weight_kg', {
-      header: 'Weight',
+      header: t('columnHeaders.weight'),
       cell: info => {
         const v = info.getValue()
         return v !== null ? `${v} kg` : '—'
       },
     }),
     col.accessor('second_nationality', {
-      header: '2nd Nat.',
+      header: t('columnHeaders.secondNat'),
       cell: info => info.getValue() ?? '—',
     }),
     col.accessor('agent_name', {
-      header: 'Agent',
+      header: t('columnHeaders.agent'),
       cell: info => info.getValue() ?? '—',
     }),
     col.accessor('added_by', {
-      header: 'Added By',
+      header: t('columnHeaders.addedBy'),
       cell: info => (
         <span className="font-mono text-xs text-gray-400">{info.getValue().slice(0, 8)}…</span>
       ),
     }),
     col.accessor('created_at', {
-      header: 'Added',
+      header: t('columnHeaders.added'),
       cell: info =>
         new Date(info.getValue()).toLocaleDateString('en-GB', {
           year: 'numeric',
@@ -171,12 +172,12 @@ export function buildColumns(
         }),
     }),
     col.accessor('stats_updated_at', {
-      header: 'Stats Updated',
+      header: t('columnHeaders.statsUpdated'),
       cell: info => {
         const v = info.getValue()
         return v
           ? new Date(v).toLocaleDateString('en-GB', { year: 'numeric', month: 'short' })
-          : 'Never'
+          : t('grid.statsNever')
       },
     }),
   ] as ColumnDef<Player, unknown>[]

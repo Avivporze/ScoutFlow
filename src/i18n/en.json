@@ -1,7 +1,6 @@
 {
   "nav": {
     "dashboard": "Dashboard",
-    "board": "Board",
     "players": "Players",
     "filter": "Filter",
     "shortlists": "Shortlists",
@@ -25,6 +24,7 @@
     "loading": "Loading…",
     "error": "An error occurred. Please try again.",
     "save": "Save",
+    "saving": "Saving…",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
@@ -96,14 +96,168 @@
     "archive": "Archive",
     "delete": "Delete",
     "confirmDelete": "Delete this player? This cannot be undone.",
-    "notesPlaceholder": "Notes thread coming in Phase 3",
+    "overview": "Overview",
+    "notes": "Notes",
+    "activity": "Activity",
+    "noNotes": "No notes yet. Start the discussion!",
+    "addNotePlaceholder": "Write a note…",
+    "postNote": "Post Note",
     "noValue": "—"
+  },
+  "sidebar": {
+    "collapse": "Collapse",
+    "expand": "Expand"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalPlayers": "Total Players",
+    "notesLast7": "Notes (last 7 days)",
+    "contractAlerts": "Contract Alerts",
+    "recentActivity": "Recent Activity",
+    "noActivity": "No activity yet.",
+    "system": "System",
+    "aPlayer": "a player",
+    "actions": {
+      "player_added": "added",
+      "player_updated": "updated",
+      "note_added": "added a note on",
+      "player_archived": "archived"
+    }
+  },
+  "columnHeaders": {
+    "name": "Name",
+    "age": "Age",
+    "nationality": "Nationality",
+    "position": "Position",
+    "club": "Club",
+    "league": "League",
+    "contract": "Contract",
+    "bestFit": "Best Fit",
+    "value": "Value",
+    "matches": "M",
+    "goals": "G",
+    "assists": "A",
+    "status": "Status",
+    "minutes": "Min",
+    "foot": "Foot",
+    "height": "Height",
+    "weight": "Weight",
+    "secondNat": "2nd Nat.",
+    "agent": "Agent",
+    "addedBy": "Added By",
+    "added": "Added",
+    "statsUpdated": "Stats Updated"
+  },
+  "filter": {
+    "title": "Advanced Filter",
+    "exportCsv": "Export CSV",
+    "clearAll": "Clear all filters",
+    "labels": {
+      "name": "Name",
+      "position": "Position",
+      "status": "Status",
+      "foot": "Foot",
+      "nationality": "Nationality",
+      "league": "League",
+      "age": "Age",
+      "goals": "Goals",
+      "assists": "Assists",
+      "matches": "Matches"
+    },
+    "placeholders": {
+      "searchPlayers": "Search players…",
+      "nationality": "e.g. Spanish",
+      "league": "e.g. La Liga",
+      "min": "Min",
+      "max": "Max"
+    },
+    "options": {
+      "allPositions": "All positions",
+      "allStatuses": "All statuses",
+      "anyFoot": "Any foot",
+      "active": "Active",
+      "watchlist": "Watchlist",
+      "archived": "Archived",
+      "left": "Left",
+      "right": "Right",
+      "both": "Both"
+    },
+    "results": {
+      "playerFound": "{{count}} player found",
+      "playersFound": "{{count}} players found",
+      "noMatch": "No players match these filters.",
+      "empty": "No players in the database yet.",
+      "loadError": "Failed to load players. Please refresh the page."
+    }
   },
   "toast": {
     "playerAdded": "Player added",
     "playerUpdated": "Player updated",
     "playerArchived": "Player archived",
     "playerDeleted": "Player deleted",
+    "noteAdded": "Note added",
     "error": "Something went wrong. Please try again."
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "profile": "Profile",
+      "teams": "Team Management",
+      "users": "User Management",
+      "export": "Data Export"
+    },
+    "profile": {
+      "title": "Your Profile",
+      "description": "Manage your personal information and preferences.",
+      "fullName": "Full Name",
+      "email": "Email",
+      "emailHint": "Email cannot be changed",
+      "avatarUrl": "Avatar URL",
+      "avatarUrlHint": "Paste a direct link to your profile image",
+      "language": "Preferred Language",
+      "english": "English",
+      "spanish": "Spanish",
+      "saveChanges": "Save Changes",
+      "saved": "Profile updated"
+    },
+    "teams": {
+      "title": "Internal Teams",
+      "description": "Manage the teams that appear in the \"Best Fit Team\" dropdown across the app.",
+      "addTeam": "Add Team",
+      "teamName": "Team Name",
+      "league": "League",
+      "country": "Country",
+      "noTeams": "No teams yet. Add your first team above.",
+      "confirmDelete": "Delete this team? Players assigned to it will have their Best Fit Team cleared.",
+      "added": "Team added",
+      "updated": "Team updated",
+      "deleted": "Team deleted",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "adminOnly": "Only admins can manage teams."
+    },
+    "users": {
+      "title": "Users",
+      "description": "View all registered users and manage their roles.",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "joined": "Joined",
+      "admin": "Admin",
+      "scout": "Scout",
+      "roleChanged": "Role updated",
+      "cannotChangeSelf": "You cannot change your own role.",
+      "adminOnly": "Only admins can manage users."
+    },
+    "export": {
+      "title": "Data Export",
+      "description": "Export your entire player database as a backup file.",
+      "exportCsv": "Export as CSV",
+      "exportJson": "Export as JSON",
+      "exporting": "Exporting…",
+      "success": "Export complete — file downloaded",
+      "noData": "No player data to export."
+    }
   }
 }
+

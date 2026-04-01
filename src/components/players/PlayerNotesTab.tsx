@@ -32,6 +32,7 @@ export function PlayerNotesTab({ playerId }: Props) {
     try {
       await addNote(content.trim())
       setContent('')
+      toast.success(t('toast.noteAdded'))
     } catch {
       toast.error(t('toast.error'))
     }

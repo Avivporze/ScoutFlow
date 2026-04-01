@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  LogOut,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/hooks/useAuth'
@@ -16,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth'
 interface SidebarProps {
   collapsed: boolean
   onToggle: () => void
+  onCloseMobile?: () => void
 }
 
 const navItems = [
@@ -25,9 +25,9 @@ const navItems = [
   { to: '/settings', icon: Settings, labelKey: 'nav.settings', end: false },
 ] as const
 
-export function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed, onToggle, onCloseMobile }: SidebarProps) {
   const { t, i18n } = useTranslation()
-  const { user, profile, signOut } = useAuth()
+  const { user, profile } = useAuth()
 
   return (
     <aside
@@ -67,6 +67,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               key={to}
               to={to}
               end={end}
+              onClick={() => onCloseMobile?.()}
               className={({ isActive }) =>
                 cn(
                   'group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
@@ -134,22 +135,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               </div>
             )}
 
-            <button 
-               onClick={() => void signOut()}
-               title={collapsed ? t('auth.signOut') : undefined}
-               className={cn("flex items-center gap-3 text-[13px] sm:text-sm font-medium text-gray-500 transition-colors hover:text-gray-900", collapsed && "justify-center")}
-            >
-               <LogOut size={16} className="shrink-0" />
-               {!collapsed && <span>Sign out</span>}
-            </button>
-
-            <button 
+            <button
                onClick={onToggle}
-               className={cn("flex items-center gap-3 text-[13px] sm:text-sm font-medium text-gray-500 transition-colors hover:text-gray-900 mt-1", collapsed && "justify-center")}
-               title={collapsed ? 'Expand' : 'Collapse'}
+               className={cn("flex items-center gap-3 text-[13px] sm:text-sm font-medium text-gray-500 transition-colors hover:text-gray-900", collapsed && "justify-center")}
+               title={collapsed ? t('sidebar.expand') : t('sidebar.collapse')}
             >
                {collapsed ? <ChevronRight size={16} className="shrink-0" /> : <ChevronLeft size={16} className="shrink-0" />}
-               {!collapsed && <span>Collapse</span>}
+               {!collapsed && <span>{t('sidebar.collapse')}</span>}
             </button>
          </div>
       </div>

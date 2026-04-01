@@ -8,6 +8,8 @@ dist-ssr/
 # Environment variables (never commit real values)
 .env.local
 .env*.local
+.env
+scraper/.env
 
 # Editor / OS
 .DS_Store
@@ -21,3 +23,11 @@ dist-ssr/
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Python
+venv/
+**/venv/
+__pycache__/
+
+# Scraper
+scraper/scraper_user_data/
