@@ -17,7 +17,6 @@ export async function addTeam(team: InternalTeamInsert): Promise<InternalTeam> {
     .select()
     .single()
   if (error) {
-    console.error('[addTeam]', error)
     throw error
   }
   return data
@@ -31,7 +30,6 @@ export async function updateTeam(id: string, updates: InternalTeamUpdate): Promi
     .select()
     .single()
   if (error) {
-    console.error('[updateTeam]', error)
     throw error
   }
   return data
@@ -40,7 +38,6 @@ export async function updateTeam(id: string, updates: InternalTeamUpdate): Promi
 export async function deleteTeam(id: string): Promise<void> {
   const { error } = await supabase.from('internal_teams').delete().eq('id', id)
   if (error) {
-    console.error('[deleteTeam]', error)
     throw error
   }
 }

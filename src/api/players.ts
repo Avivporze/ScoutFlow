@@ -24,12 +24,22 @@ function toISODate(d: Date): string {
   return d.toISOString().split('T')[0]
 }
 
+/**
+ * Sanitize strings to prevent PostgREST injection through the Supabase SDK.
+ * Strips commas, parens, quotes, percent signs, and backslashes.
+ */
+function sanitizePostgrestFilter(val: string): string {
+  return val.replace(/[,()"%'\\]/g, '').trim()
+}
+
 export async function filterPlayers(filters: PlayerFilters): Promise<Player[]> {
   let query = supabase.from('players').select('*')
 
   if (filters.search?.trim()) {
-    const s = filters.search.trim()
-    query = query.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%`)
+    const s = sanitizePostgrestFilter(filters.search)
+    if (s) {
+      query = query.or(`first_name.ilike.%${s}%,last_name.ilike.%${s}%`)
+    }
   }
 
   if (filters.position) {
@@ -45,11 +55,17 @@ export async function filterPlayers(filters: PlayerFilters): Promise<Player[]> {
   }
 
   if (filters.nationality?.trim()) {
-    query = query.ilike('nationality', `%${filters.nationality.trim()}%`)
+    const nat = sanitizePostgrestFilter(filters.nationality)
+    if (nat) {
+      query = query.ilike('nationality', `%${nat}%`)
+    }
   }
 
   if (filters.league?.trim()) {
-    query = query.ilike('league', `%${filters.league.trim()}%`)
+    const lg = sanitizePostgrestFilter(filters.league)
+    if (lg) {
+      query = query.ilike('league', `%${lg}%`)
+    }
   }
 
   // Age → date_of_birth bounds
@@ -74,7 +90,6 @@ export async function filterPlayers(filters: PlayerFilters): Promise<Player[]> {
 
   const { data, error } = await query.order('created_at', { ascending: false })
   if (error) {
-    console.error('[filterPlayers]', error)
     throw error
   }
   return data
@@ -86,7 +101,6 @@ export async function getPlayers(): Promise<Player[]> {
     .select('*')
     .order('created_at', { ascending: false })
   if (error) {
-    console.error('[getPlayers]', error)
     throw error
   }
   return data
@@ -99,7 +113,6 @@ export async function addPlayer(player: PlayerInsert): Promise<Player> {
     .select()
     .single()
   if (error) {
-    console.error('[addPlayer]', error)
     throw error
   }
   return data
@@ -113,7 +126,6 @@ export async function updatePlayer(id: string, updates: PlayerUpdate): Promise<P
     .select()
     .single()
   if (error) {
-    console.error('[updatePlayer]', error)
     throw error
   }
   return data
@@ -122,7 +134,6 @@ export async function updatePlayer(id: string, updates: PlayerUpdate): Promise<P
 export async function deletePlayer(id: string): Promise<void> {
   const { error } = await supabase.from('players').delete().eq('id', id)
   if (error) {
-    console.error('[deletePlayer]', error)
     throw error
   }
 }

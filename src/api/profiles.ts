@@ -7,7 +7,6 @@ export async function getProfiles(): Promise<Profile[]> {
     .select('*')
     .order('created_at')
   if (error) {
-    console.error('[getProfiles]', error)
     throw error
   }
   return data
@@ -24,7 +23,6 @@ export async function updateProfile(
     .select()
     .single()
   if (error) {
-    console.error('[updateProfile]', error)
     throw error
   }
   return data
@@ -41,7 +39,6 @@ export async function updateProfileRole(
     .select()
     .single()
   if (error) {
-    console.error('[updateProfileRole]', error)
     throw error
   }
   return data

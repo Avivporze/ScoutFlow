@@ -171,7 +171,6 @@ export function PlayerFormPage() {
       await queryClient.invalidateQueries({ queryKey: ['players'] })
       navigate('/players')
     } catch (err) {
-      console.error('[PlayerFormPage] save failed:', err)
       const message =
         err instanceof Error ? err.message : t('toast.error')
       toast.error(message)

@@ -43,12 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(currentUser)
       setLoading(false) // clear loading as soon as auth state is known
       if (currentUser) {
-        const p = await fetchProfile(currentUser.id)
-        setProfile(p)
-        if (p?.preferred_language) {
-          void i18n.changeLanguage(p.preferred_language)
+        try {
+          const p = await fetchProfile(currentUser.id)
+          setProfile(p)
+          if (p?.preferred_language) {
+            void i18n.changeLanguage(p.preferred_language)
+          }
+        } catch {
+          // fetch auth failed implicitly
         }
       }
+    }).catch(() => {
+      setLoading(false)
     })
 
     // Keep auth state in sync after sign-in / sign-out / token refresh
@@ -63,10 +69,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Making async Supabase DB calls directly inside onAuthStateChange
         // causes a GoTrueClient deadlock that blocks all other DB operations.
         setTimeout(async () => {
-          const p = await fetchProfile(currentUser.id)
-          setProfile(p)
-          if (p?.preferred_language) {
-            void i18n.changeLanguage(p.preferred_language)
+          try {
+            const p = await fetchProfile(currentUser.id)
+            setProfile(p)
+            if (p?.preferred_language) {
+              void i18n.changeLanguage(p.preferred_language)
+            }
+          } catch {
+            // fail silently to avoid exposing errors
           }
         }, 0)
       } else {
