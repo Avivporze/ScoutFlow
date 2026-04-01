@@ -7,7 +7,7 @@ import type { ActivityWithDetails } from '@/api/dashboard'
 
 // Maps DB action_type values to human-readable verb phrases.
 // "note_added" uses "added a note on" so the player name reads naturally after it.
-const ACTION_LABELS: Record<string, string> = {
+const ACTION_LABELS: Record<ActivityWithDetails['action_type'], string> = {
   player_added: 'added',
   player_updated: 'updated',
   note_added: 'added a note on',
@@ -20,8 +20,7 @@ function getPlayerName(entry: ActivityWithDetails): string {
 }
 
 function buildActionLabel(entry: ActivityWithDetails): string {
-  const verb = ACTION_LABELS[entry.action_type] ?? entry.action_type
-  return `${verb} ${getPlayerName(entry)}`
+  return `${ACTION_LABELS[entry.action_type]} ${getPlayerName(entry)}`
 }
 
 export function DashboardPage() {
