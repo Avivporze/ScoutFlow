@@ -1,4 +1,4 @@
-import { supabase } from '@/api/supabase'
+import { supabase } from './supabase'
 import type { ActivityLogEntry } from '@/types/activity'
 
 export interface DashboardStats {
