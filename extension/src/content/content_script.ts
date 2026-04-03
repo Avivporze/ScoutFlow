@@ -43,7 +43,7 @@ interface TMPlayerData {
   market_value: string | null;
   agent_name: string | null;
   agent_contact: string | null;
-  instagram: string | null;
+  social_links: Record<string, string>;
   stats_matches: number;
   stats_goals: number;
   stats_assists: number;
@@ -173,7 +173,8 @@ function extractName(): { first_name: string; last_name: string } {
     // Fallback: any h1 on the page
     const fallbackH1 = document.querySelector('h1');
     if (fallbackH1) {
-      const parts = (fallbackH1.textContent ?? '').trim().split(/\s+/);
+      const raw = (fallbackH1.textContent ?? '').trim().replace(/^#\d+\s*/, '');
+      const parts = raw.split(/\s+/);
       return { first_name: parts[0] || '', last_name: parts.slice(1).join(' ') || '' };
     }
     return { first_name: '', last_name: '' };
@@ -187,11 +188,14 @@ function extractName(): { first_name: string; last_name: string } {
   const h1Clone = h1.cloneNode(true) as HTMLElement;
   const clonedStrong = h1Clone.querySelector('strong');
   if (clonedStrong) clonedStrong.remove();
-  const firstName = h1Clone.textContent?.trim() ?? '';
+  let firstName = h1Clone.textContent?.trim() ?? '';
+
+  // TM h1 contains a shirt number prefix like "#9 Erling Haaland" — strip it
+  firstName = firstName.replace(/^#\d+\s*/, '');
 
   return {
     first_name: firstName,
-    last_name: strongText,
+    last_name: strongText.replace(/^#\d+\s*/, ''),
   };
 }
 
@@ -316,39 +320,49 @@ function extractPreferredFoot(): string | null {
 
 // ── Position ─────────────────────────────────────────────────────────────────
 
+/**
+ * Try to match a position string against TM_POSITION_MAP.
+ * TM may format as "Attack - Centre-Forward" — try each segment.
+ */
+function matchPosition(raw: string): string | null {
+  if (TM_POSITION_MAP[raw]) return TM_POSITION_MAP[raw];
+  // Split on " - " and try each segment (e.g. "Attack - Centre-Forward")
+  const parts = raw.split(/\s*-\s*/);
+  for (const part of parts) {
+    if (TM_POSITION_MAP[part.trim()]) return TM_POSITION_MAP[part.trim()];
+  }
+  return null;
+}
+
 function extractPosition(): string | null {
-  // Strategy 1: itemprop="position" or dedicated position element
-  const posEl = document.querySelector('[itemprop="position"]');
-  if (posEl) {
-    const text = (posEl.textContent ?? '').trim();
-    // TM sometimes appends " - " with sub-position. Take the main position.
-    const mainPos = text.split(' - ')[0].trim();
-    if (TM_POSITION_MAP[mainPos]) return TM_POSITION_MAP[mainPos];
-  }
-
-  // Strategy 2: data-header content highlight (position shown in header)
-  const highlightEl = document.querySelector('.data-header__content--highlight');
-  if (highlightEl) {
-    const text = (highlightEl.textContent ?? '').trim();
-    if (TM_POSITION_MAP[text]) return TM_POSITION_MAP[text];
-  }
-
-  // Strategy 3: detail-position class
-  const detailPosEl = document.querySelector('.detail-position__position');
-  if (detailPosEl) {
-    const text = (detailPosEl.textContent ?? '').trim();
-    if (TM_POSITION_MAP[text]) return TM_POSITION_MAP[text];
-  }
-
-  // Strategy 4: info-table "Position" row
+  // Strategy 1: info-table "Position" row (most reliable on current TM)
   const posText = getInfoTableValue('position');
   if (posText) {
-    const mainPos = posText.split(' - ')[0].trim();
-    if (TM_POSITION_MAP[mainPos]) return TM_POSITION_MAP[mainPos];
+    const mapped = matchPosition(posText);
+    if (mapped) return mapped;
   }
 
-  // Strategy 5: Try all map keys against any text content found
-  console.warn('[ScoutFlow] Position not found via standard selectors.');
+  // Strategy 2: itemprop="position"
+  const posEl = document.querySelector('[itemprop="position"]');
+  if (posEl) {
+    const mapped = matchPosition((posEl.textContent ?? '').trim());
+    if (mapped) return mapped;
+  }
+
+  // Strategy 3: data-header content highlight
+  const highlightEl = document.querySelector('.data-header__content--highlight');
+  if (highlightEl) {
+    const mapped = matchPosition((highlightEl.textContent ?? '').trim());
+    if (mapped) return mapped;
+  }
+
+  // Strategy 4: detail-position class
+  const detailPosEl = document.querySelector('.detail-position__position');
+  if (detailPosEl) {
+    const mapped = matchPosition((detailPosEl.textContent ?? '').trim());
+    if (mapped) return mapped;
+  }
+
   return null;
 }
 
@@ -536,12 +550,25 @@ function extractAgent(): { agent_name: string | null; agent_contact: string | nu
 
 // ── Social Links ─────────────────────────────────────────────────────────────
 
-function extractInstagram(): string | null {
-  const link = document.querySelector('a[href*="instagram.com"]');
-  if (link) {
-    return link.getAttribute('href');
-  }
-  return null;
+/**
+ * Extract player social links from the info-table Social-Media toolbar.
+ * Targets only the player's `.social-media-toolbar__icons` container
+ * to avoid picking up TM's own footer social links.
+ */
+function extractSocialLinks(): Record<string, string> {
+  const links: Record<string, string> = {};
+  const toolbar = document.querySelector('.social-media-toolbar__icons');
+  if (!toolbar) return links;
+
+  toolbar.querySelectorAll('a[href]').forEach(a => {
+    const href = (a as HTMLAnchorElement).href;
+    if (/instagram\.com/i.test(href)) links.instagram = href;
+    else if (/twitter\.com|x\.com/i.test(href)) links.twitter = href;
+    else if (/facebook\.com/i.test(href)) links.facebook = href;
+    else if (/tiktok\.com/i.test(href)) links.tiktok = href;
+  });
+
+  return links;
 }
 
 // ── Stats Extraction ─────────────────────────────────────────────────────────
@@ -554,18 +581,19 @@ interface SeasonStats {
 }
 
 /**
- * Wait for the performance data table to appear in the DOM.
- * TM may load stats asynchronously.
+ * Wait for the TM performance Svelte component to render.
+ * Looks for the competition thumb buttons which appear when the component loads.
  */
-function waitForStatsTable(timeout = 3000): Promise<boolean> {
+function waitForPerformanceData(timeout = 5000): Promise<boolean> {
+  const selector = '.tm-player-performance__thumb';
   return new Promise(resolve => {
-    if (findPerformanceTable()) return resolve(true);
+    if (document.querySelector(selector)) return resolve(true);
 
     const interval = 200;
     let elapsed = 0;
     const timer = setInterval(() => {
       elapsed += interval;
-      if (findPerformanceTable()) {
+      if (document.querySelector(selector)) {
         clearInterval(timer);
         return resolve(true);
       }
@@ -578,169 +606,89 @@ function waitForStatsTable(timeout = 3000): Promise<boolean> {
 }
 
 /**
- * Find the performance data table on the TM player profile.
- * TM uses various table structures for season stats.
+ * Read stats from the currently visible performance slide.
+ *
+ * DOM structure (Svelte component, as of 2025-2026):
+ *   <li class="tm-player-performance__stats-list-item">
+ *     <div class="...description">Appearances</div>
+ *     <a class="...value">29</a>
+ *   </li>
+ *
+ * Available stats: Appearances, Goals, Assists, Yellow/Second/Red cards.
+ * Minutes are NOT available as absolute values (only as a percentage).
  */
-function findPerformanceTable(): HTMLTableElement | null {
-  // Look for the main stats/performance table
-  const selectors = [
-    'table.items',                              // Classic TM stats table
-    '.responsive-table table',                  // Responsive wrapper
-    '#yw1 table',                               // Legacy TM table ID
-    'table[class*="performance"]',              // Performance-specific class
-    '.grid-view table',                         // Grid view variant
-    '.box .responsive-table table',             // Boxed layout
-  ];
+function readCurrentSlideStats(): SeasonStats {
+  const result: SeasonStats = { matches: 0, goals: 0, assists: 0, minutes: 0 };
 
-  for (const selector of selectors) {
-    const table = document.querySelector(selector) as HTMLTableElement | null;
-    if (table?.querySelector('tbody tr td')) return table;
+  const items = document.querySelectorAll('.tm-player-performance__stats-list-item');
+  for (const item of items) {
+    const descEl = item.querySelector('.tm-player-performance__stats-list-item-description');
+    const valueEl = item.querySelector('.tm-player-performance__stats-list-item-value');
+    if (!descEl || !valueEl) continue;
+
+    const label = (descEl.textContent ?? '').trim().toLowerCase();
+    const rawValue = (valueEl.textContent ?? '').replace(/[^\d]/g, '');
+    const value = parseInt(rawValue, 10) || 0;
+
+    if (/appearances?|einsätze/i.test(label)) result.matches = value;
+    else if (/\bgoals?\b|tore\b/i.test(label)) result.goals = value;
+    else if (/assists?|vorlagen/i.test(label)) result.assists = value;
   }
 
-  return null;
+  return result;
 }
 
 /**
- * Extract current season stats from the performance table.
- * Strategy 1: Look for a "Total" or "Overall" row.
- * Strategy 2: Sum across individual competition rows.
+ * Extract TOTAL season stats across all competitions by cycling through
+ * each competition thumb in the Svelte performance component.
+ *
+ * Each thumb represents one competition (e.g. Premier League, UCL, FA Cup).
+ * Only the active thumb's data is rendered. We click each thumb, wait for
+ * the slide to update, read the stats, and sum them.
  */
-function extractStats(): SeasonStats {
+async function extractStats(): Promise<SeasonStats> {
   const zero: SeasonStats = { matches: 0, goals: 0, assists: 0, minutes: 0 };
 
-  try {
-    const table = findPerformanceTable();
-    if (!table) {
-      console.warn('[ScoutFlow] No performance table found.');
-      return zero;
-    }
-
-    // Identify column indices from the header row
-    const headerCells = table.querySelectorAll('thead th, thead td');
-    const colIndex = mapColumnIndices(headerCells);
-
-    // Strategy 1: Look for a "Total" or tfoot summary row
-    const totalRow = findTotalRow(table);
-    if (totalRow) {
-      const stats = extractStatsFromRow(totalRow, colIndex);
-      return stats;
-    }
-
-    // Strategy 2: Sum across all data rows in tbody
-    const rows = Array.from(table.querySelectorAll('tbody tr')) as HTMLElement[];
-    const dataRows = rows.filter(row => {
-      // Skip header/spacer rows
-      if (row.classList.contains('bg_blau_20') || row.classList.contains('thead')) return false;
-      return row.querySelector('td') !== null;
-    });
-
-    if (dataRows.length === 0) {
-      console.warn('[ScoutFlow] No data rows in performance table.');
-      return zero;
-    }
-
-    const summed = dataRows.reduce(
-      (acc, row) => {
-        const rowStats = extractStatsFromRow(row, colIndex);
-        return {
-          matches: acc.matches + rowStats.matches,
-          goals: acc.goals + rowStats.goals,
-          assists: acc.assists + rowStats.assists,
-          minutes: acc.minutes + rowStats.minutes,
-        };
-      },
-      { ...zero },
-    );
-
-    return summed;
-  } catch (err) {
-    console.error('[ScoutFlow] Stats extraction error:', err);
+  const thumbs = document.querySelectorAll('.tm-player-performance__thumb');
+  if (thumbs.length === 0) {
+    console.warn('[ScoutFlow] No competition thumbs found.');
     return zero;
   }
-}
 
-/**
- * Map header cell text to column indices for flexible stat extraction.
- */
-function mapColumnIndices(headerCells: NodeListOf<Element>): Record<string, number> {
-  const map: Record<string, number> = {};
-
-  headerCells.forEach((cell, index) => {
-    const text = (cell.textContent ?? '').trim().toLowerCase();
-    const title = (cell.getAttribute('title') ?? '').trim().toLowerCase();
-
-    // Appearances / Matches
-    if (text === 'apps' || text === 'appearances' || title.includes('appearance') ||
-        title.includes('matches') || text === 'mp' || text === 'games') {
-      if (!map.matches) map.matches = index;
-    }
-    // Goals
-    if (text === 'goals' || title.includes('goals') || text === 'g') {
-      if (!map.goals) map.goals = index;
-    }
-    // Assists
-    if (text === 'assists' || text === 'a' || title.includes('assists')) {
-      if (!map.assists) map.assists = index;
-    }
-    // Minutes
-    if (text === 'minutes' || text === 'min' || text === 'mins' ||
-        title.includes('minutes') || text === "'") {
-      if (!map.minutes) map.minutes = index;
-    }
+  // Remember which thumb is currently active so we can restore it
+  let originalIndex = 0;
+  thumbs.forEach((t, i) => {
+    if (t.classList.contains('tm-player-performance__thumb--active')) originalIndex = i;
   });
 
-  return map;
-}
+  const total: SeasonStats = { ...zero };
 
-/**
- * Find a Total / Overall summary row in the table.
- */
-function findTotalRow(table: HTMLTableElement): HTMLElement | null {
-  // Check tfoot first
-  const tfootRow = table.querySelector('tfoot tr') as HTMLElement | null;
-  if (tfootRow?.querySelector('td')) return tfootRow;
+  for (let i = 0; i < thumbs.length; i++) {
+    const thumb = thumbs[i] as HTMLElement;
+    thumb.click();
 
-  // Look for a row with "Total" or "Overall" text
-  const allRows = Array.from(table.querySelectorAll('tbody tr, tfoot tr')) as HTMLElement[];
-  for (const row of allRows) {
-    const firstCell = row.querySelector('td, th');
-    const text = (firstCell?.textContent ?? '').trim().toLowerCase();
-    if (text === 'total' || text === 'overall' || text.includes('total')) {
-      return row;
+    // Wait until this thumb becomes active (Svelte re-render)
+    let waited = 0;
+    while (!thumb.classList.contains('tm-player-performance__thumb--active') && waited < 1000) {
+      await new Promise(r => setTimeout(r, 50));
+      waited += 50;
     }
+    // Small extra delay for slide content to update
+    await new Promise(r => setTimeout(r, 150));
+
+    const slide = readCurrentSlideStats();
+    total.matches += slide.matches;
+    total.goals += slide.goals;
+    total.assists += slide.assists;
+    total.minutes += slide.minutes;
   }
 
-  // Look for a specifically styled summary row (e.g., bold/highlighted)
-  for (const row of allRows) {
-    if (row.classList.contains('zentriert_bold') || row.classList.contains('main-group-first-row')) {
-      const text = (row.textContent ?? '').toLowerCase();
-      if (text.includes('total')) return row;
-    }
+  // Restore original active tab
+  if (originalIndex >= 0 && originalIndex < thumbs.length) {
+    (thumbs[originalIndex] as HTMLElement).click();
   }
 
-  return null;
-}
-
-/**
- * Extract numeric stats from a single table row using column indices.
- */
-function extractStatsFromRow(row: HTMLElement, colIndex: Record<string, number>): SeasonStats {
-  const cells = Array.from(row.querySelectorAll('td, th'));
-
-  function getNumeric(key: string): number {
-    const idx = colIndex[key];
-    if (idx === undefined || idx >= cells.length) return 0;
-    const text = (cells[idx].textContent ?? '').replace(/[.,\s]/g, '').replace(/-/g, '0').trim();
-    const num = parseInt(text);
-    return isNaN(num) ? 0 : num;
-  }
-
-  return {
-    matches: getNumeric('matches'),
-    goals: getNumeric('goals'),
-    assists: getNumeric('assists'),
-    minutes: getNumeric('minutes'),
-  };
+  return total;
 }
 
 // ── Date Normalization ───────────────────────────────────────────────────────
@@ -801,7 +749,7 @@ function normalizeDateToISO(raw: string): string | null {
 
 // ── Main Data Extraction ─────────────────────────────────────────────────────
 
-function extractData(): TMPlayerData | null {
+async function extractData(): Promise<TMPlayerData | null> {
   try {
     const { first_name, last_name } = extractName();
     if (!first_name && !last_name) {
@@ -819,10 +767,10 @@ function extractData(): TMPlayerData | null {
     const contract_expiry = extractContractExpiry();
     const market_value = extractMarketValue();
     const { agent_name, agent_contact } = extractAgent();
-    const instagram = extractInstagram();
-    const stats = extractStats();
+    const social_links = extractSocialLinks();
+    const stats = await extractStats();
 
-    const data: TMPlayerData = {
+    return {
       first_name,
       last_name,
       date_of_birth,
@@ -837,15 +785,13 @@ function extractData(): TMPlayerData | null {
       market_value,
       agent_name,
       agent_contact,
-      instagram,
+      social_links,
       stats_matches: stats.matches,
       stats_goals: stats.goals,
       stats_assists: stats.assists,
       stats_minutes: stats.minutes,
       transfermarkt_url: window.location.href,
     };
-
-    return data;
   } catch (err) {
     console.error('[ScoutFlow] Extraction error:', err);
     return null;
@@ -858,13 +804,13 @@ async function run(): Promise<void> {
   const toast = createToast();
   updateToast(toast, 'Extracting player data...', 'loading');
 
-  // Wait for stats table to appear (TM may load it asynchronously)
-  const tableReady = await waitForStatsTable();
-  if (!tableReady) {
-    console.warn('[ScoutFlow] Stats table did not appear within 3s — proceeding with available data.');
+  // Wait for Svelte performance component to render (loads async)
+  const perfReady = await waitForPerformanceData();
+  if (!perfReady) {
+    console.warn('[ScoutFlow] Performance data did not appear within 5s — proceeding with available data.');
   }
 
-  const data = extractData();
+  const data = await extractData();
 
   if (!data) {
     updateToast(toast, 'Failed to parse player page', 'error');
