@@ -4,16 +4,20 @@ import {
   getDashboardStats,
   getRecentActivity,
   getTopPerformers,
-  getRecentProspects,
-  getPositionalPipeline,
+  getExpiringContracts,
+  getHighestMarketValue,
+  getScoutingGaps,
+  getScoutingGapCount,
   type DashboardStats,
   type ActivityWithDetails,
+  type ExpiringContract,
+  type MarketValuePlayer,
+  type ScoutingGapPlayer,
 } from '@/api/dashboard'
 import type { Player } from '@/types/player'
 
 const EMPTY_STATS: DashboardStats = {
   totalPlayers: 0,
-  watchlistCount: 0,
   teamsScouted: 0,
   countriesScouted: 0,
 }
@@ -60,29 +64,58 @@ export function useTopPerformers(limit = 4) {
   }
 }
 
-export function usePositionalPipeline() {
+
+export function useExpiringContracts(limit = 5) {
   const query = useQuery({
-    queryKey: ['dashboard', 'positionalPipeline'],
-    queryFn: getPositionalPipeline,
+    queryKey: ['dashboard', 'expiringContracts', limit],
+    queryFn: () => getExpiringContracts(limit),
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 
   return {
-    pipeline: query.data ?? [],
+    contracts: query.data ?? ([] as ExpiringContract[]),
     isLoading: query.isPending,
     isError: query.isError,
   }
 }
 
-export function useRecentProspects(limit = 4) {
+export function useHighestMarketValue(limit = 5) {
   const query = useQuery({
-    queryKey: ['dashboard', 'recentProspects', limit],
-    queryFn: () => getRecentProspects(limit),
+    queryKey: ['dashboard', 'highestMarketValue', limit],
+    queryFn: () => getHighestMarketValue(limit),
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 
   return {
-    players: query.data ?? ([] as Player[]),
+    players: query.data ?? ([] as MarketValuePlayer[]),
+    isLoading: query.isPending,
+    isError: query.isError,
+  }
+}
+
+export function useScoutingGaps(limit = 5) {
+  const query = useQuery({
+    queryKey: ['dashboard', 'scoutingGaps', limit],
+    queryFn: () => getScoutingGaps(limit),
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+
+  return {
+    players: query.data ?? ([] as ScoutingGapPlayer[]),
+    isLoading: query.isPending,
+    isError: query.isError,
+  }
+}
+
+export function useScoutingGapCount() {
+  const query = useQuery({
+    queryKey: ['dashboard', 'scoutingGapCount'],
+    queryFn: getScoutingGapCount,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  })
+
+  return {
+    count: query.data ?? 0,
     isLoading: query.isPending,
     isError: query.isError,
   }
