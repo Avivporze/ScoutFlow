@@ -136,10 +136,19 @@ function normalizeMarketValue(digits: string, unit: string): string | null {
 }
 
 function parseTMMarketValue(html: string): string | null {
+  // TM renders market value as: <span class="waehrung">€</span>130.00m
+  // The closing </span> tag sits between the € symbol and the digit string,
+  // so a naive /€\s*[\d,.]+/ pattern fails to match.
+  // All patterns below account for that optional tag boundary.
   const patterns = [
-    /class="[^"]*market-value-wrapper[^"]*"[\s\S]{0,800}?€\s*([\d,.]+)\s*(m|k)/i,
-    /itemprop="price"[^>]*>\s*€?\s*([\d,.]+)\s*(m|k)/i,
-    /Marktwert[\s\S]{0,400}?€\s*([\d,.]+)\s*(m|k)/i,
+    // Primary: market-value-wrapper class → € (possibly inside closed span) → number + unit
+    /class="[^"]*market-value-wrapper[^"]*"[\s\S]{0,600}?€(?:<\/span>)?\s*([\d,.]+)\s*(m|k)/i,
+    // Secondary: waehrung span closing tag immediately before the number
+    /<span[^>]*class="[^"]*waehrung[^"]*"[^>]*>€<\/span>\s*([\d,.]+)\s*(m|k)/i,
+    // Tertiary: itemprop price (semantic, stable across redesigns)
+    /itemprop="price"[^>]*>[\s\S]{0,80}?([\d,.]+)\s*(m|k)/i,
+    // Last resort: "Market value" or "Marktwert" label context
+    /(?:Market value|Marktwert)[\s\S]{0,400}?([\d,.]+)\s*(m|k)/i,
   ];
 
   for (const pattern of patterns) {
@@ -182,10 +191,17 @@ async function fetchTMData(tmUrl: string): Promise<TMData> {
     return empty;
   }
 
-  return {
-    position:     parseTMPosition(html),
-    market_value: parseTMMarketValue(html),
-  };
+  const position     = parseTMPosition(html);
+  const market_value = parseTMMarketValue(html);
+
+  if (position === null) {
+    console.warn('[ScoutFlow TM] Position parse failed — check regex against current TM HTML.');
+  }
+  if (market_value === null) {
+    console.warn('[ScoutFlow TM] Market value parse failed — check regex against current TM HTML.');
+  }
+
+  return { position, market_value };
 }
 
 // ── Payload assembly ────────────────────────────────────────────────────────

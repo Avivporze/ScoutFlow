@@ -107,8 +107,13 @@ export function buildColumns(
       cell: info => <BestFitTeamCell teamId={info.getValue()} teamsMap={teamsMap} />,
     }),
     col.accessor('market_value', {
+      id: 'market_value',
       header: t('columnHeaders.value'),
-      cell: info => info.getValue() ?? '—',
+      cell: info => {
+        const v = info.getValue()
+        if (!v) return '—'
+        return v.startsWith('€') ? v : `€${v}`
+      },
     }),
     col.accessor('stats_matches', {
       header: t('columnHeaders.matches'),

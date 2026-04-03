@@ -59,38 +59,55 @@ function extractCurrentSeasonStats(): { matches: number; goals: number; assists:
   const zero = { matches: 0, goals: 0, assists: 0, minutes: 0 };
 
   try {
-    // Collect ALL rows including spacers so we can detect season boundaries.
+    // FBref's stats_standard tbody has NO spacer rows between seasons.
+    // Relying on spacers is incorrect — they're used in other table types, not here.
+    // Instead, we identify the current season from the season label text and
+    // filter to only rows that share that label.
     const allRows = Array.from(
       document.querySelectorAll('table[id^="stats_standard"] tbody tr')
     ) as HTMLElement[];
 
-    if (allRows.length === 0) return zero;
-
-    // Walk backwards from the bottom; stop at the first spacer.
-    // Everything above the spacer (exclusive) is the current season's block.
-    const currentBlock: HTMLElement[] = [];
-    for (let i = allRows.length - 1; i >= 0; i--) {
-      if (allRows[i].classList.contains('spacer')) break;
-      currentBlock.unshift(allRows[i]);
-    }
-
-    // Filter to rows that carry real stat data.
-    const dataRows = currentBlock.filter(
-      row =>
-        !row.classList.contains('partial_table') &&
-        !row.classList.contains('thead') &&
-        row.querySelector('td[data-stat="games"]') !== null
+    // Keep only rows that represent actual stat data.
+    const validRows = allRows.filter(row =>
+      !row.classList.contains('spacer') &&
+      !row.classList.contains('partial_table') &&
+      !row.classList.contains('thead') &&
+      row.querySelector('td[data-stat="games"]') !== null
     );
 
-    if (dataRows.length === 0) return zero;
+    if (validRows.length === 0) return zero;
+
+    // Step 1: Find the most recent season label (e.g. "2024-25").
+    // FBref repeats the year on every competition row for that season, so we
+    // scan from the bottom to find the last non-empty, non-header season cell.
+    let currentSeason = '';
+    for (let i = validRows.length - 1; i >= 0; i--) {
+      const el = validRows[i].querySelector('th[data-stat="season"]') as HTMLElement | null;
+      const text = el?.innerText.trim() ?? '';
+      if (text && text !== 'Season') {
+        currentSeason = text;
+        break;
+      }
+    }
+
+    if (!currentSeason) return zero;
+
+    // Step 2: Collect only the rows that belong to the current season.
+    const seasonRows = validRows.filter(row => {
+      const el = row.querySelector('th[data-stat="season"]') as HTMLElement | null;
+      return el?.innerText.trim() === currentSeason;
+    });
+
+    if (seasonRows.length === 0) return zero;
 
     const getStat = (row: HTMLElement, stat: string): number => {
       const el = row.querySelector(`td[data-stat="${stat}"]`) as HTMLElement | null;
       return el ? parseInt(el.innerText.replace(/,/g, '')) || 0 : 0;
     };
 
-    // Prefer a rolled-up Total row (comp_level is blank or says "X Comps" / "X Leagues").
-    const totalRow = dataRows.find(row => {
+    // Step 3: Prefer a rolled-up Total row within the current season
+    // (comp_level is empty or says "X Comps" / "X Leagues").
+    const totalRow = seasonRows.find(row => {
       const el = row.querySelector('td[data-stat="comp_level"]') as HTMLElement | null;
       if (!el) return false;
       const text = el.innerText.trim();
@@ -106,8 +123,9 @@ function extractCurrentSeasonStats(): { matches: number; goals: number; assists:
       };
     }
 
-    // No total row: sum every competition row individually (no double-count risk).
-    return dataRows.reduce(
+    // Step 4: No total row — sum each individual competition row.
+    // Each row is one distinct competition, so there is no double-count risk.
+    return seasonRows.reduce(
       (acc, row) => ({
         matches: acc.matches + getStat(row, 'games'),
         goals:   acc.goals   + getStat(row, 'goals'),
@@ -175,11 +193,16 @@ function extractData() {
     };
 
     const clubText = getPText('Club:');
-    const heightText = document.querySelector('span[itemprop="height"]')?.innerHTML || '';
-    const weightText = document.querySelector('span[itemprop="weight"]')?.innerHTML || '';
-    
-    const heightCm = parseInt(heightText.replace('cm', '')) || null;
-    const weightKg = parseInt(weightText.replace('kg', '')) || null;
+
+    // Height & weight: FBref removed the span[itemprop] attributes from its markup.
+    // Parse the values directly from the bio paragraph text instead.
+    // The physicals string is reliably formatted as "191cm / 6-3, 87kg / 192lb".
+    const bioText = paragraphs.map(p => p.innerText).join(' ');
+    const heightMatch = bioText.match(/(\d{2,3})\s*cm/);
+    const weightMatch = bioText.match(/(\d{2,3})\s*kg/);
+    const heightCm = heightMatch ? parseInt(heightMatch[1]) : null;
+    const weightKg = weightMatch ? parseInt(weightMatch[1]) : null;
+
     const dob = document.querySelector('#necro-birth')?.getAttribute('data-birth') || null;
 
     // 4. Statistics Extraction — aggregated across ALL competitions for the current season.
