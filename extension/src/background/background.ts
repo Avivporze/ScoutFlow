@@ -1,296 +1,179 @@
 /**
- * ScoutFlow Ride-Along Background Service Worker
- * Orchestrates dual-source data fetch (FBref + Transfermarkt) and Supabase sync.
+ * ScoutFlow Background Service Worker
+ *
+ * Single-source architecture: receives extracted Transfermarkt data from
+ * the content script, looks up the player by transfermarkt_url, and PATCHes
+ * Supabase with the full payload.
+ *
+ * If the player doesn't exist yet, creates a new record (upsert-by-URL).
  */
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Only fetch Transfermarkt pages from these trusted origins (SSRF prevention).
-const TM_ALLOWED_ORIGINS = [
-  'https://www.transfermarkt.com',
-  'https://transfermarkt.com',
-];
-
-// Maps Transfermarkt verbose position names to ScoutFlow position codes.
-// Unmapped values fall back to the FBref-extracted position.
-const TM_POSITION_MAP: Record<string, string> = {
-  'Goalkeeper':        'GK',
-  'Centre-Back':       'CB',
-  'Left-Back':         'LB',
-  'Right-Back':        'RB',
-  'Left Wing-Back':    'LWB',
-  'Right Wing-Back':   'RWB',
-  'Defensive Midfield':'CDM',
-  'Central Midfield':  'CM',
-  'Attacking Midfield':'CAM',
-  'Left Midfield':     'LM',
-  'Right Midfield':    'RM',
-  'Left Winger':       'LW',
-  'Right Winger':      'RW',
-  'Second Striker':    'CF',
-  'Centre-Forward':    'ST',
-};
-
-// ── Message listener ────────────────────────────────────────────────────────
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'SYNC_PLAYER') {
-    handleSyncPlayer(message.payload, sender)
-      .then(result => sendResponse(result))
-      .catch(() => sendResponse({ success: false, error: 'Unexpected error during sync.' }));
-    return true; // Keep message channel open for async response
-  }
-});
-
-// ── Auth ────────────────────────────────────────────────────────────────────
+// ── Auth ──────────────────────────────────────────────────────────────────────
 
 async function getAuthToken(): Promise<string> {
-  const projectRef = SUPABASE_URL.split('.')[0].split('//')[1];
+  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
   const storageKey = `sb-${projectRef}-auth-token`;
+  const result = await chrome.storage.local.get(storageKey);
+  const raw = result[storageKey];
+  if (!raw) throw new Error('User not logged in — open the ScoutFlow popup to sign in.');
 
-  const storage = await chrome.storage.local.get(storageKey);
-  const sessionData = storage[storageKey];
-
-  if (!sessionData) {
-    throw new Error('User not logged in. Please open the ScoutFlow extension popup.');
-  }
-
-  const session = typeof sessionData === 'string' ? JSON.parse(sessionData) : sessionData;
-  const token: string = session.access_token;
-
-  if (!token) {
-    throw new Error('Session expired. Please log in again.');
-  }
-
+  const session = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  const token = session?.access_token ?? session?.currentSession?.access_token;
+  if (!token) throw new Error('Session expired — please sign in again.');
   return token;
 }
 
-// ── Supabase lookup ─────────────────────────────────────────────────────────
+// ── Supabase Helpers ──────────────────────────────────────────────────────────
 
 interface PlayerLookup {
   id: string;
-  transfermarkt_url: string | null;
 }
 
-async function lookupPlayerByFbrefUrl(fbrefUrl: string, token: string): Promise<PlayerLookup | null> {
-  const url =
+async function lookupPlayerByTMUrl(tmUrl: string, token: string): Promise<PlayerLookup | null> {
+  const resp = await fetch(
     `${SUPABASE_URL}/rest/v1/players` +
-    `?fbref_url=eq.${encodeURIComponent(fbrefUrl)}` +
-    `&select=id,transfermarkt_url` +
-    `&limit=1`;
-
-  const res = await fetch(url, {
-    headers: {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${token}`,
+    `?transfermarkt_url=eq.${encodeURIComponent(tmUrl)}` +
+    `&select=id` +
+    `&limit=1`,
+    {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+      },
     },
-  });
-
-  if (!res.ok) return null;
-
-  const rows: PlayerLookup[] = await res.json();
+  );
+  if (!resp.ok) return null;
+  const rows = await resp.json();
   return rows.length > 0 ? rows[0] : null;
 }
 
-// ── Transfermarkt fetch & parse ─────────────────────────────────────────────
-
-function isTrustedTMUrl(rawUrl: string): boolean {
-  try {
-    const { origin } = new URL(rawUrl);
-    return TM_ALLOWED_ORIGINS.includes(origin);
-  } catch {
-    return false;
-  }
-}
-
-function parseTMPosition(html: string): string | null {
-  const patterns = [
-    /<span[^>]*itemprop="position"[^>]*>([^<]+)<\/span>/i,
-    /class="[^"]*hauptposition[^"]*"[\s\S]{0,500}?<td[^>]*>([^<]+)<\/td>/i,
-    /Position:?\s*<\/td>\s*<td[^>]*>(?:<[^>]*>)*\s*([^<\n]+?)\s*(?:<|$)/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match) {
-      const raw = match[1].trim();
-      return TM_POSITION_MAP[raw] ?? null;
-    }
-  }
-
-  return null;
-}
-
-function normalizeMarketValue(digits: string, unit: string): string | null {
-  const num = parseFloat(digits.replace(/,/g, ''));
-  if (isNaN(num)) return null;
-
-  if (unit.toLowerCase() === 'm') {
-    // parseFloat(toFixed(2)) strips trailing zeros: 45.00 → 45, 45.50 → 45.5
-    return `€${parseFloat(num.toFixed(2))}M`;
-  }
-
-  // 'k' suffix
-  return `€${Math.round(num)}K`;
-}
-
-function parseTMMarketValue(html: string): string | null {
-  // TM renders market value as: <span class="waehrung">€</span>130.00m
-  // The closing </span> tag sits between the € symbol and the digit string,
-  // so a naive /€\s*[\d,.]+/ pattern fails to match.
-  // All patterns below account for that optional tag boundary.
-  const patterns = [
-    // Primary: market-value-wrapper class → € (possibly inside closed span) → number + unit
-    /class="[^"]*market-value-wrapper[^"]*"[\s\S]{0,600}?€(?:<\/span>)?\s*([\d,.]+)\s*(m|k)/i,
-    // Secondary: waehrung span closing tag immediately before the number
-    /<span[^>]*class="[^"]*waehrung[^"]*"[^>]*>€<\/span>\s*([\d,.]+)\s*(m|k)/i,
-    // Tertiary: itemprop price (semantic, stable across redesigns)
-    /itemprop="price"[^>]*>[\s\S]{0,80}?([\d,.]+)\s*(m|k)/i,
-    // Last resort: "Market value" or "Marktwert" label context
-    /(?:Market value|Marktwert)[\s\S]{0,400}?([\d,.]+)\s*(m|k)/i,
-  ];
-
-  for (const pattern of patterns) {
-    const match = html.match(pattern);
-    if (match) {
-      const normalized = normalizeMarketValue(match[1], match[2]);
-      if (normalized) return normalized;
-    }
-  }
-
-  return null;
-}
-
-interface TMData {
-  position: string | null;
-  market_value: string | null;
-}
-
-async function fetchTMData(tmUrl: string): Promise<TMData> {
-  const empty: TMData = { position: null, market_value: null };
-
-  if (!isTrustedTMUrl(tmUrl)) return empty;
-
-  let html: string;
-  try {
-    const res = await fetch(tmUrl, {
+async function patchPlayer(id: string, payload: Record<string, unknown>, token: string): Promise<void> {
+  const resp = await fetch(
+    `${SUPABASE_URL}/rest/v1/players?id=eq.${id}`,
+    {
+      method: 'PATCH',
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ' +
-          '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Referer': 'https://www.transfermarkt.com/',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
       },
-    });
-
-    if (!res.ok) return empty;
-    html = await res.text();
-  } catch {
-    return empty;
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Database error (${resp.status}): ${body}`);
   }
-
-  const position     = parseTMPosition(html);
-  const market_value = parseTMMarketValue(html);
-
-  if (position === null) {
-    console.warn('[ScoutFlow TM] Position parse failed — check regex against current TM HTML.');
-  }
-  if (market_value === null) {
-    console.warn('[ScoutFlow TM] Market value parse failed — check regex against current TM HTML.');
-  }
-
-  return { position, market_value };
 }
 
-// ── Payload assembly ────────────────────────────────────────────────────────
+async function createPlayer(payload: Record<string, unknown>, token: string): Promise<string> {
+  const resp = await fetch(
+    `${SUPABASE_URL}/rest/v1/players`,
+    {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify(payload),
+    },
+  );
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error(`Database error (${resp.status}): ${body}`);
+  }
+  const rows = await resp.json();
+  return rows[0]?.id;
+}
 
-type SyncOutcome = 'full' | 'fbref_only';
+// ── Payload Builder ───────────────────────────────────────────────────────────
 
-function buildPatchPayload(
-  fbref: Record<string, unknown>,
-  tm: TMData
-): Record<string, unknown> {
-  // TM position takes precedence; fall back to FBref position if TM parse failed.
-  const position = tm.position ?? fbref.position ?? null;
+const VALID_FEET = new Set(['Left', 'Right', 'Both']);
 
+function buildPayload(data: Record<string, unknown>): Record<string, unknown> {
   const payload: Record<string, unknown> = {
-    first_name:       fbref.first_name,
-    last_name:        fbref.last_name,
-    position,
-    preferred_foot:   fbref.preferred_foot,
-    height_cm:        fbref.height_cm,
-    weight_kg:        fbref.weight_kg,
-    nationality:      fbref.nationality,
-    date_of_birth:    fbref.date_of_birth,
-    current_club:     fbref.current_club,
-    stats_matches:    fbref.stats_matches,
-    stats_goals:      fbref.stats_goals,
-    stats_assists:    fbref.stats_assists,
-    stats_minutes:    fbref.stats_minutes,
-    stats_updated_at: new Date().toISOString(),
+    first_name:         data.first_name,
+    last_name:          data.last_name,
+    date_of_birth:      data.date_of_birth ?? null,
+    nationality:        data.nationality ?? null,
+    height_cm:          data.height_cm ?? null,
+    stats_matches:      data.stats_matches ?? 0,
+    stats_goals:        data.stats_goals ?? 0,
+    stats_assists:      data.stats_assists ?? 0,
+    stats_minutes:      data.stats_minutes ?? 0,
+    stats_updated_at:   new Date().toISOString(),
+    transfermarkt_url:  data.transfermarkt_url,
   };
 
-  // Only write market_value when TM successfully parsed one — never overwrite
-  // a manually-entered value with null.
-  if (tm.market_value !== null) {
-    payload.market_value = tm.market_value;
+  // Conditional fields — only write if not null (preserve manual edits)
+  const foot = data.preferred_foot as string | null;
+  if (foot && VALID_FEET.has(foot)) payload.preferred_foot = foot;
+
+  if (data.second_nationality) payload.second_nationality = data.second_nationality;
+  if (data.position) payload.position = data.position;
+  if (data.current_club) payload.current_club = data.current_club;
+  if (data.league) payload.league = data.league;
+  if (data.contract_expiry) payload.contract_expiry = data.contract_expiry;
+  if (data.market_value) payload.market_value = data.market_value;
+  if (data.agent_name) payload.agent_name = data.agent_name;
+  if (data.agent_contact) payload.agent_contact = data.agent_contact;
+
+  const social = data.social_links as Record<string, string> | undefined;
+  if (social && Object.keys(social).length > 0) {
+    payload.social_links = social;
   }
 
   return payload;
 }
 
-// ── Main handler ────────────────────────────────────────────────────────────
+// ── Main Handler ──────────────────────────────────────────────────────────────
 
 async function handleSyncPlayer(
-  payload: Record<string, unknown>,
-  _sender: chrome.runtime.MessageSender
-): Promise<{ success: boolean; error?: string; outcome?: SyncOutcome }> {
-
-  // 1. Authenticate
+  data: Record<string, unknown>,
+): Promise<{ success: boolean; created?: boolean; error?: string }> {
+  // 1. Auth
   const token = await getAuthToken();
 
-  // 2. Look up the player by fbref_url to get their id and transfermarkt_url.
-  //    We filter by fbref_url but PATCH by primary key (id) for precision.
-  const player = await lookupPlayerByFbrefUrl(payload.fbref_url as string, token);
+  // 2. Look up player by transfermarkt_url
+  const tmUrl = data.transfermarkt_url as string;
+  const existing = await lookupPlayerByTMUrl(tmUrl, token);
 
-  if (!player) {
-    return {
-      success: false,
-      error: 'Player not found in ScoutFlow — add them first.',
-    };
+  // 3. Build payload
+  const payload = buildPayload(data);
+
+  if (existing) {
+    // 4a. Update existing player
+    await patchPlayer(existing.id, payload, token);
+    return { success: true, created: false };
+  } else {
+    // 4b. Create new player record
+    // Ensure required fields have defaults for INSERT
+    payload.status = 'active';
+    await createPlayer(payload, token);
+    return { success: true, created: true };
   }
-
-  // 3. Fetch Transfermarkt data (all failures are soft — sync continues without TM).
-  let tm: TMData = { position: null, market_value: null };
-  let outcome: SyncOutcome = 'fbref_only';
-
-  if (player.transfermarkt_url) {
-    tm = await fetchTMData(player.transfermarkt_url);
-    if (tm.position !== null || tm.market_value !== null) {
-      outcome = 'full';
-    }
-  }
-
-  // 4. Build strict allowlist payload and write to Supabase.
-  const body = buildPatchPayload(payload, tm);
-  const patchUrl = `${SUPABASE_URL}/rest/v1/players?id=eq.${player.id}`;
-
-  const res = await fetch(patchUrl, {
-    method: 'PATCH',
-    headers: {
-      'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'Prefer': 'return=minimal',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!res.ok) {
-    return { success: false, error: `Database error: ${res.statusText}` };
-  }
-
-  return { success: true, outcome };
 }
+
+// ── Message Listener ──────────────────────────────────────────────────────────
+
+chrome.runtime.onMessage.addListener(
+  (message: { type: string; payload: Record<string, unknown> }, _sender, sendResponse) => {
+    if (message.type !== 'SYNC_PLAYER') return;
+
+    handleSyncPlayer(message.payload)
+      .then(result => sendResponse(result))
+      .catch(err => sendResponse({
+        success: false,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      }));
+
+    return true; // Keep message channel open for async response
+  },
+);
