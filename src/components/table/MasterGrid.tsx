@@ -59,9 +59,11 @@ function loadJson<T>(key: string, fallback: T): T {
 }
 
 const DraggableHeader = ({ header }: { header: Header<Player, unknown> }) => {
+  const isDragColumn = header.column.id === 'drag'
   const { attributes, isDragging, listeners, setNodeRef, transform } =
     useSortable({
       id: header.column.id,
+      disabled: isDragColumn,
     })
 
   const style: React.CSSProperties = {
@@ -80,7 +82,7 @@ const DraggableHeader = ({ header }: { header: Header<Player, unknown> }) => {
       className="border-b border-gray-200 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-50"
     >
       <div className="flex items-center gap-1.5">
-        {!header.isPlaceholder && (
+        {!header.isPlaceholder && !isDragColumn && (
           <button
             {...attributes}
             {...listeners}

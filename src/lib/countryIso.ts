@@ -245,14 +245,38 @@ export const LEAGUE_ISO: Record<string, string> = {
   // Argentina
   "Argentine Primera División": 'ar',
   'Primera División': 'ar',
+  'Primera Nacional': 'ar',
   // Brazil
   'Série A': 'br',
   'Serie A Brazil': 'br',
+  'Série B': 'br',
+  // Uruguay
+  'Liga AUF Apertura': 'uy',
+  'Liga AUF Clausura': 'uy',
+  'Primera División Uruguay': 'uy',
+  // Colombia
+  'Liga BetPlay DIMAYOR': 'co',
+  'Categoría Primera A': 'co',
+  // Chile
+  'Primera División de Chile': 'cl',
+  'Primera B': 'cl',
+  // Peru
+  'Liga 1': 'pe',
+  // Ecuador
+  'Liga Pro': 'ec',
+  // Paraguay
+  'División Profesional': 'py',
+  // Bolivia
+  'División de Fútbol Profesional': 'bo',
+  // Venezuela
+  'Primera División de Venezuela': 've',
+  'Liga FUTVE': 've',
   // USA
   'MLS': 'us',
   'Major League Soccer': 'us',
   // Mexico
   'Liga MX': 'mx',
+  'Liga de Expansión MX': 'mx',
   // Japan
   'J1 League': 'jp',
   // South Korea
