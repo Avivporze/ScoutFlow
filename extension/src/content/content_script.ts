@@ -623,7 +623,6 @@ function extractStats(): SeasonStats {
     const totalRow = findTotalRow(table);
     if (totalRow) {
       const stats = extractStatsFromRow(totalRow, colIndex);
-      console.log('[ScoutFlow] Stats from Total row:', stats);
       return stats;
     }
 
@@ -653,7 +652,6 @@ function extractStats(): SeasonStats {
       { ...zero },
     );
 
-    console.log('[ScoutFlow] Stats summed across competitions:', summed);
     return summed;
   } catch (err) {
     console.error('[ScoutFlow] Stats extraction error:', err);
@@ -774,12 +772,21 @@ function normalizeDateToISO(raw: string): string | null {
   }
 
   // Slash format: "06/30/2027" or "30/06/2027"
+  // Default to dd/mm/yyyy (European convention) since TM is a European site
   const slashMatch = cleaned.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if (slashMatch) {
     const [, a, b, y] = slashMatch;
-    // Heuristic: if first number > 12, it's dd/mm/yyyy
-    const day = parseInt(a) > 12 ? a : b;
-    const month = parseInt(a) > 12 ? b : a;
+    let day: string, month: string;
+    if (parseInt(a) > 12) {
+      // First number > 12: definitely dd/mm
+      day = a; month = b;
+    } else if (parseInt(b) > 12) {
+      // Second number > 12: definitely mm/dd
+      day = b; month = a;
+    } else {
+      // Ambiguous: default to dd/mm (European convention for TM)
+      day = a; month = b;
+    }
     return `${y}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   }
 
@@ -865,17 +872,14 @@ async function run(): Promise<void> {
     return;
   }
 
-  console.log('[ScoutFlow] Extracted payload:', data);
-
-  chrome.runtime.sendMessage({ type: 'SYNC_PLAYER', payload: data }, (response) => {
-    if (response?.success) {
-      const label = response.created ? 'Player created!' : 'Player synced!';
-      updateToast(toast, label, 'success');
-    } else {
-      updateToast(toast, response?.error || 'Failed to sync', 'error');
-    }
-    setTimeout(() => removeToast(toast), 3000);
-  });
+  const response = await chrome.runtime.sendMessage({ type: 'SYNC_PLAYER', payload: data });
+  if (response?.success) {
+    const label = response.created ? 'Player created & synced!' : 'Synced!';
+    updateToast(toast, label, 'success');
+  } else {
+    updateToast(toast, response?.error ?? 'Unknown error', 'error');
+  }
+  setTimeout(() => removeToast(toast), 3000);
 }
 
 // Trigger immediately upon injection.
