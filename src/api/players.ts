@@ -109,13 +109,13 @@ export async function getPlayers(): Promise<Player[]> {
 export async function addPlayer(player: PlayerInsert): Promise<Player> {
   // Determine the next sort_order for this user so new players go to the bottom.
   const addedBy = player.added_by ?? (await supabase.auth.getUser()).data.user?.id
-  const { data: maxRow } = await supabase
+  const { data: maxRow } = addedBy ? await supabase
     .from('players')
     .select('sort_order')
     .eq('added_by', addedBy)
     .order('sort_order', { ascending: false })
     .limit(1)
-    .maybeSingle()
+    .maybeSingle() : { data: null }
 
   const sort_order = ((maxRow?.sort_order) ?? -1) + 1
 
