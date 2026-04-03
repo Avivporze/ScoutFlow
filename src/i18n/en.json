@@ -30,7 +30,8 @@
     "edit": "Edit",
     "add": "Add",
     "search": "Search",
-    "noResults": "No results found."
+    "noResults": "No results found.",
+    "optional": "optional"
   },
   "pages": {
     "dashboard": "Dashboard",
@@ -47,7 +48,7 @@
     "loadError": "Failed to load players. Please refresh the page.",
     "rowCount": "{{filtered}} of {{total}} players",
     "statsNever": "Never",
-    "statsNoData": "No stats yet — add an FBref URL to enable scraping.",
+    "statsNoData": "No stats yet — sync from Transfermarkt to populate.",
     "statsLastUpdated": "Last updated: {{date}}"
   },
   "playerForm": {
@@ -168,6 +169,12 @@
     "weight": "Weight",
     "secondNat": "2nd Nat.",
     "agent": "Agent",
+    "agentContact": "Agent Contact",
+    "dob": "DOB",
+    "tmUrl": "Transfermarkt",
+    "fbrefUrl": "FBref",
+    "socials": "Socials",
+    "updated": "Updated",
     "addedBy": "Added By",
     "added": "Added",
     "statsUpdated": "Stats Updated"

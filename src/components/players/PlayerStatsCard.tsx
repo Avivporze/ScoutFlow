@@ -16,7 +16,7 @@ export function PlayerStatsCard({ player }: Props) {
   if (!player.stats_updated_at) {
     return (
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-500">
-        No stats yet — add an FBref URL to enable scraping.
+        No stats yet — sync from Transfermarkt to populate.
       </div>
     )
   }

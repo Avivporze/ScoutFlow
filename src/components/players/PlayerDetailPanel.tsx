@@ -206,17 +206,6 @@ export function PlayerDetailPanel({ player, onClose }: Props) {
                 {t('playerForm.sections.linksSocial')}
               </h3>
               <div className="flex flex-col gap-3">
-                {player.fbref_url && (
-                  <a
-                    href={player.fbref_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                  >
-                    <ExternalLink size={14} />
-                    FBref Profile
-                  </a>
-                )}
                 {player.transfermarkt_url && (
                   <a
                     href={player.transfermarkt_url}
@@ -226,6 +215,17 @@ export function PlayerDetailPanel({ player, onClose }: Props) {
                   >
                     <ExternalLink size={14} />
                     Transfermarkt Profile
+                  </a>
+                )}
+                {player.fbref_url && (
+                  <a
+                    href={player.fbref_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                  >
+                    <ExternalLink size={14} />
+                    FBref Profile
                   </a>
                 )}
                 <SocialLinksDisplay links={socialLinks} />

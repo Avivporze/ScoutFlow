@@ -30,7 +30,8 @@
     "edit": "Editar",
     "add": "Añadir",
     "search": "Buscar",
-    "noResults": "No se encontraron resultados."
+    "noResults": "No se encontraron resultados.",
+    "optional": "opcional"
   },
   "pages": {
     "dashboard": "Panel",
@@ -47,7 +48,7 @@
     "loadError": "Error al cargar jugadores. Por favor recarga la página.",
     "rowCount": "{{filtered}} de {{total}} jugadores",
     "statsNever": "Nunca",
-    "statsNoData": "Sin estadísticas aún — añade una URL de FBref para activar el scraping.",
+    "statsNoData": "Sin estadísticas aún — sincroniza desde Transfermarkt para completar.",
     "statsLastUpdated": "Última actualización: {{date}}"
   },
   "playerForm": {
@@ -168,6 +169,12 @@
     "weight": "Peso",
     "secondNat": "2ª Nac.",
     "agent": "Agente",
+    "agentContact": "Contacto Agente",
+    "dob": "F. Nac.",
+    "tmUrl": "Transfermarkt",
+    "fbrefUrl": "FBref",
+    "socials": "Redes",
+    "updated": "Actualiz.",
     "addedBy": "Añadido Por",
     "added": "Añadido",
     "statsUpdated": "Stats Actualiz."
