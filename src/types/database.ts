@@ -103,6 +103,7 @@ export interface Database {
           added_by: string
           created_at: string
           updated_at: string
+          sort_order: number
         }
         Insert: {
           id?: string
@@ -129,6 +130,7 @@ export interface Database {
           added_by?: string
           created_at?: string
           updated_at?: string
+          sort_order?: number
         }
         Update: {
           id?: string
@@ -155,6 +157,7 @@ export interface Database {
           added_by?: string
           created_at?: string
           updated_at?: string
+          sort_order?: number
         }
         Relationships: []
       }
