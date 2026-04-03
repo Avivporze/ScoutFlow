@@ -10,6 +10,23 @@ import { ContractCell } from './cells/ContractCell'
 import { PlayerNameCell } from './cells/PlayerNameCell'
 import { PositionBadge } from './cells/PositionBadge'
 import { StatusCell } from './cells/StatusCell'
+import { TM_COUNTRY_ISO, LEAGUE_ISO } from '@/lib/countryIso'
+
+// ── Flag Icon ───────────────────────────────────────────────────────────────
+
+function FlagIcon({ iso }: { iso: string }) {
+  return (
+    <img
+      src={`https://flagcdn.com/w20/${iso}.png`}
+      onError={(e) => {
+        ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+      }}
+      className="inline w-4 h-3 mr-1 rounded-sm align-middle"
+      alt=""
+      aria-hidden="true"
+    />
+  )
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -87,7 +104,17 @@ export function buildColumns(
     }),
     col.accessor('nationality', {
       header: t('columnHeaders.nationality'),
-      cell: info => info.getValue() ?? '—',
+      cell: info => {
+        const v = info.getValue()
+        if (!v) return '—'
+        const iso = TM_COUNTRY_ISO[v]
+        return (
+          <span className="flex items-center gap-0.5">
+            {iso && <FlagIcon iso={iso} />}
+            {v}
+          </span>
+        )
+      },
     }),
     col.accessor('position', {
       header: t('columnHeaders.position'),
@@ -99,7 +126,17 @@ export function buildColumns(
     }),
     col.accessor('league', {
       header: t('columnHeaders.league'),
-      cell: info => info.getValue() ?? '—',
+      cell: info => {
+        const v = info.getValue()
+        if (!v) return '—'
+        const iso = LEAGUE_ISO[v]
+        return (
+          <span className="flex items-center gap-0.5">
+            {iso && <FlagIcon iso={iso} />}
+            {v}
+          </span>
+        )
+      },
     }),
     col.accessor('contract_expiry', {
       header: t('columnHeaders.contract'),
