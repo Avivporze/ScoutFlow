@@ -2,9 +2,10 @@ import { useTranslation } from 'react-i18next'
 import { useDashboardStats, useRecentActivity } from '@/hooks/useDashboard'
 import type { ActivityWithDetails } from '@/api/dashboard'
 import { TopPerformersWidget } from '@/components/dashboard/TopPerformersWidget'
-import { RecentProspectsWidget } from '@/components/dashboard/RecentProspectsWidget'
-import { DepthPipelineWidget } from '@/components/dashboard/DepthPipelineWidget'
-import { Users, Eye, Globe, Shield } from 'lucide-react'
+import { ExpiringContractsWidget } from '@/components/dashboard/ExpiringContractsWidget'
+import { HighestMarketValueWidget } from '@/components/dashboard/HighestMarketValueWidget'
+import { ScoutingGapsStatWidget } from '@/components/dashboard/ScoutingGapsStatWidget'
+import { Users, Globe, Shield } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { es as esLocale } from 'date-fns/locale'
 
@@ -47,22 +48,8 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Watchlist */}
-        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-purple-50 ring-1 ring-purple-100">
-              <Eye size={20} className="text-purple-600" />
-            </div>
-            <div>
-              {statsLoading ? (
-                <div className="h-7 w-14 animate-pulse rounded bg-gray-100" />
-              ) : (
-                <p className="text-2xl font-bold text-gray-900">{stats.watchlistCount}</p>
-              )}
-              <p className="text-sm font-medium text-gray-500">{t('dashboard.watchlistCount')}</p>
-            </div>
-          </div>
-        </div>
+        {/* Scouting Gaps KPI */}
+        <ScoutingGapsStatWidget />
 
         {/* Countries Scouted */}
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
@@ -101,9 +88,9 @@ export function DashboardPage() {
 
       {/* ── Dashboard Widgets ───────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <DepthPipelineWidget />
         <TopPerformersWidget />
-        <RecentProspectsWidget />
+        <ExpiringContractsWidget />
+        <HighestMarketValueWidget />
       </div>
 
       {/* ── Activity Feed ─────────────────────────────────────── */}
