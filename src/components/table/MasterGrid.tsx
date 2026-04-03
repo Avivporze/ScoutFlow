@@ -8,6 +8,7 @@ import {
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
+  type ColumnDef,
   type SortingState,
   type VisibilityState,
   type Header,
@@ -15,6 +16,7 @@ import {
 } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Search, GripVertical } from 'lucide-react'
 import { usePlayers } from '@/hooks/usePlayers'
+import { bulkUpdateSortOrder } from '@/api/players'
 import { PlayerDetailPanel } from '@/components/players/PlayerDetailPanel'
 import { buildColumns, HIDDEN_BY_DEFAULT, playerSearchFilter } from './columns'
 import type { Player } from '@/types/player'
@@ -34,9 +36,13 @@ import {
   arrayMove,
   SortableContext,
   horizontalListSortingStrategy,
+  verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable'
-import { restrictToHorizontalAxis } from '@dnd-kit/modifiers'
+import {
+  restrictToHorizontalAxis,
+  restrictToVerticalAxis,
+} from '@dnd-kit/modifiers'
 import { CSS } from '@dnd-kit/utilities'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
@@ -106,6 +112,61 @@ const DraggableHeader = ({ header }: { header: Header<Player, unknown> }) => {
   )
 }
 
+interface SortableRowProps {
+  row: Row<Player>
+  isDndDisabled: boolean
+}
+
+const SortableRow = ({ row, isDndDisabled }: SortableRowProps) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: row.original.id,
+    disabled: isDndDisabled,
+  })
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    position: 'relative',
+    zIndex: isDragging ? 1 : 0,
+  }
+
+  return (
+    <tr ref={setNodeRef} style={style} className="hover:bg-gray-50 h-[45px]">
+      {row.getVisibleCells().map(cell => {
+        if (cell.column.id === 'drag') {
+          return (
+            <td key={cell.id} className="py-2.5 px-2 w-8">
+              {!isDndDisabled && (
+                <button
+                  {...attributes}
+                  {...listeners}
+                  className="cursor-grab text-gray-300 hover:text-gray-500 focus:outline-none touch-none"
+                  aria-label="Drag to reorder player"
+                >
+                  <GripVertical size={14} />
+                </button>
+              )}
+            </td>
+          )
+        }
+        return (
+          <td key={cell.id} className="py-2.5 px-3">
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </td>
+        )
+      })}
+    </tr>
+  )
+}
+
 interface MasterGridProps {
   contractAlertMode?: boolean
 }
@@ -121,9 +182,31 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
   const [globalFilter, setGlobalFilter] = useState('')
   const [showColPicker, setShowColPicker] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
-  const [columnOrder, setColumnOrder] = useState<string[]>(
-    () => loadJson(LS_COL_ORDER, []),
-  )
+  const [columnOrder, setColumnOrder] = useState<string[]>(() => {
+    const saved = loadJson<string[]>(LS_COL_ORDER, [])
+    // Migration: ensure `drag` column is always first (handles existing saved orders)
+    if (saved.length > 0 && !saved.includes('drag')) {
+      return ['drag', ...saved]
+    }
+    return saved
+  })
+
+  // Manual row order — initialised from DB-sorted players, updated on drag
+  const [localPlayerOrder, setLocalPlayerOrder] = useState<string[]>([])
+  const pendingOrderRef = useRef<string[]>([])
+  const debouncedSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Sync order from DB on initial load and after query re-fetch
+  useEffect(() => {
+    setLocalPlayerOrder(players.map(p => p.id))
+  }, [players])
+
+  // Cleanup: cancel any pending debounced DB write when the component unmounts
+  useEffect(() => {
+    return () => {
+      if (debouncedSaveRef.current) clearTimeout(debouncedSaveRef.current)
+    }
+  }, [])
 
   const navigate = useNavigate()
 
@@ -151,6 +234,16 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
         p.status !== 'archived',
     )
   }, [players, contractAlertMode])
+
+  // When a header sort is active, TanStack Table handles ordering.
+  // Otherwise, respect the manual localPlayerOrder (source of truth).
+  const orderedPlayers = useMemo(() => {
+    if (sorting.length > 0 || localPlayerOrder.length === 0) return displayPlayers
+    const idToPlayer = new Map(displayPlayers.map(p => [p.id, p]))
+    return localPlayerOrder
+      .filter(id => idToPlayer.has(id))
+      .map(id => idToPlayer.get(id)!)
+  }, [displayPlayers, localPlayerOrder, sorting])
 
   const colButtonRef = useRef<HTMLButtonElement>(null)
   const colDropdownRef = useRef<HTMLDivElement>(null)
@@ -180,13 +273,24 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
   }
 
   const columns = useMemo(
-    () => buildColumns(setSelectedPlayer, t),
+    (): ColumnDef<Player, unknown>[] => [
+      // Non-data drag-handle column — not toggleable, not sortable
+      {
+        id: 'drag',
+        header: '',
+        size: 32,
+        enableSorting: false,
+        enableHiding: false,
+        cell: () => null, // handle rendered by SortableRow
+      },
+      ...buildColumns(setSelectedPlayer, t),
+    ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [i18n.language],
   )
 
   const table = useReactTable({
-    data: displayPlayers,
+    data: orderedPlayers,
     columns,
     state: { sorting, columnVisibility, globalFilter, ...(columnOrder.length > 0 ? { columnOrder } : {}) },
     onSortingChange: setSorting,
@@ -202,11 +306,11 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
   // Virtualization
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const { rows } = table.getRowModel()
-  
+
   const rowVirtualizer = useVirtualizer({
     count: isLoading ? 8 : rows.length,
     getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 45, // roughly the height of a table row
+    estimateSize: () => 45,
     overscan: 10,
   })
 
@@ -217,19 +321,42 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
     useSensor(KeyboardSensor, {})
   )
 
-  function handleDragEnd(event: DragEndEvent) {
+  function handleColumnDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (active && over && active.id !== over.id) {
+      // Prevent moving the drag-handle column itself
+      if (active.id === 'drag' || over.id === 'drag') return
       setColumnOrder((order) => {
-        const currentOrder = order.length > 0 
-          ? order 
+        const currentOrder = order.length > 0
+          ? order
           : table.getAllLeafColumns().map(c => c.id)
-
         const oldIndex = currentOrder.indexOf(active.id as string)
         const newIndex = currentOrder.indexOf(over.id as string)
         return arrayMove(currentOrder, oldIndex, newIndex)
       })
     }
+  }
+
+  function handleRowDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    // Resolve against the full order (not the filtered row set) so persistence
+    // covers all players, not just those visible in the current search/filter.
+    const oldIndex = localPlayerOrder.indexOf(active.id as string)
+    const newIndex = localPlayerOrder.indexOf(over.id as string)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    const newOrder = arrayMove(localPlayerOrder, oldIndex, newIndex)
+    setLocalPlayerOrder(newOrder)
+    pendingOrderRef.current = newOrder
+
+    // Debounce DB write — batches rapid consecutive drags
+    if (debouncedSaveRef.current) clearTimeout(debouncedSaveRef.current)
+    debouncedSaveRef.current = setTimeout(async () => {
+      const updates = pendingOrderRef.current.map((id, i) => ({ id, sort_order: i }))
+      await bulkUpdateSortOrder(updates).catch(console.error)
+    }, 400)
   }
 
   const virtualItems = rowVirtualizer.getVirtualItems()
@@ -300,20 +427,22 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
           />
         </div>
 
-        {/* Table Container (Virtual boundaries + overflow handle) */}
-        <div 
+        {/* Table Container */}
+        <div
           ref={tableContainerRef}
           className="relative overflow-x-auto overflow-y-auto rounded-lg border border-gray-200"
           style={{ maxHeight: 'min(70vh, 800px)' }}
         >
-          <DndContext
-            collisionDetection={closestCenter}
-            modifiers={[restrictToHorizontalAxis]}
-            onDragEnd={handleDragEnd}
-            sensors={sensors}
-          >
-            <table className="w-full border-collapse text-sm min-w-max">
-              <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+          <table className="w-full border-collapse text-sm min-w-max">
+            {/* Column DnD: horizontal, restricted to header */}
+            <thead className="bg-gray-50 sticky top-0 z-10 shadow-sm">
+              <DndContext
+                collisionDetection={closestCenter}
+                modifiers={[restrictToHorizontalAxis]}
+                onDragEnd={handleColumnDragEnd}
+                sensors={sensors}
+                accessibility={{ container: document.body }}
+              >
                 {table.getHeaderGroups().map(headerGroup => (
                   <tr key={headerGroup.id}>
                     <SortableContext
@@ -326,24 +455,36 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
                     </SortableContext>
                   </tr>
                 ))}
-              </thead>
+              </DndContext>
+            </thead>
+
+            {/* Row DnD: vertical */}
+            <DndContext
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis]}
+              onDragEnd={handleRowDragEnd}
+              sensors={sensors}
+              accessibility={{ container: document.body }}
+            >
               <tbody className="divide-y divide-gray-100 bg-white">
                 {paddingTop > 0 && (
                   <tr>
                     <td style={{ height: `${paddingTop}px` }} colSpan={table.getVisibleLeafColumns().length} />
                   </tr>
                 )}
-                
+
                 {isLoading ? (
-                  virtualItems.map((virtualRow) => (
-                    <tr key={virtualRow.key} className="h-[45px]">
-                      {table.getVisibleLeafColumns().map(col => (
-                        <td key={col.id} className="py-2.5 pl-9 pr-3">
-                          <div className="h-4 animate-pulse rounded bg-gray-100" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))
+                  <SortableContext items={[]} strategy={verticalListSortingStrategy}>
+                    {virtualItems.map((virtualRow) => (
+                      <tr key={virtualRow.key} className="h-[45px]">
+                        {table.getVisibleLeafColumns().map(col => (
+                          <td key={col.id} className="py-2.5 px-3">
+                            <div className="h-4 animate-pulse rounded bg-gray-100" />
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </SortableContext>
                 ) : rows.length === 0 ? (
                   <tr>
                     <td
@@ -354,18 +495,21 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
                     </td>
                   </tr>
                 ) : (
-                  virtualItems.map(virtualRow => {
-                    const row = rows[virtualRow.index] as Row<Player>
-                    return (
-                      <tr key={row.id} className="hover:bg-gray-50 h-[45px]">
-                        {row.getVisibleCells().map(cell => (
-                          <td key={cell.id} className="py-2.5 pl-9 pr-3">
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    )
-                  })
+                  <SortableContext
+                    items={rows.map(r => r.original.id)}
+                    strategy={verticalListSortingStrategy}
+                  >
+                    {virtualItems.map(virtualRow => {
+                      const row = rows[virtualRow.index] as Row<Player>
+                      return (
+                        <SortableRow
+                          key={row.id}
+                          row={row}
+                          isDndDisabled={sorting.length > 0}
+                        />
+                      )
+                    })}
+                  </SortableContext>
                 )}
 
                 {paddingBottom > 0 && (
@@ -374,8 +518,8 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
                   </tr>
                 )}
               </tbody>
-            </table>
-          </DndContext>
+            </DndContext>
+          </table>
         </div>
 
         {/* Row count */}
