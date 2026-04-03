@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "ScoutFlow Ride-Along",
+  "version": "1.0",
+  "description": "Securely extract FBref player stats to the ScoutFlow database.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://fbref.com/*",
+    "*://*.transfermarkt.com/*",
+    "https://*.supabase.co/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "ScoutFlow"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://fbref.com/en/players/*"],
+      "js": ["content_script.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

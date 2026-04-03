@@ -16,6 +16,7 @@
 | 6.0 | 2026-04-01 | **Phase 6 frozen: Cloudflare Turnstile managed mode cannot be bypassed by automation. Pivot to manual stats entry for MVP.** |
 | 7.0 | 2026-04-02 | **Phase 7 complete: V2 Dashboard rebuilt with Top Performers, Pipeline, and KPI cards + Strict Security Audit performed.** |
 | 7.0 | 2026-04-02 | **Pre-launch Security Audit complete: Patched PostgREST injection, enforced strict auth.uid() based RLS with admin bypass. Ready for MVP Vercel Deployment.** |
+| 8.0 | 2026-04-03 | **Phase 8: Dual-Source Data Pipeline. Chrome Extension upgraded from single-source (FBref) to dual-source (FBref + Transfermarkt). Background Service Worker orchestrates TM fetch; position and market value populated from TM. FBref stats now aggregated across ALL competitions via season-group algorithm. SSRF prevention, data minimization, and error-graceful soft-skip on TM failure.** |
 
 ---
 
@@ -920,6 +921,31 @@ Scout/
    - **PostgREST Vulnerabilities:** Used strict chained methods (`.eq`, `.neq`, `.not_null`) instead of concatenated schema queries.
    - **Error Handling:** Obfuscated all PostgREST schema errors from bubbling to the client console (`throw new Error('Generic message')`).
    - **Type Safety:** Defined mapped TypeScript interfaces (`TopPerformer`, `RecentProspect`) mirroring exact lightweight payloads.
+
+### Phase 8: Dual-Source Data Pipeline (Chrome Extension) ✅ COMPLETE
+
+**Status:** All steps done. Extension upgraded from single-source (FBref) to dual-source (FBref + Transfermarkt) with background-orchestrated fetch and graceful degradation.
+
+**Architecture: Single-Message / Background-Orchestrated**
+User visits an FBref player page → content script extracts data → one message to the background worker → background looks up the player's `transfermarkt_url` from Supabase → fetches TM page → parses position + market value via layered regex → merges data → PATCHes Supabase. Toast shows "Synced!" (both sources) or "Synced (FBref only)" (TM unavailable).
+
+1. **Manifest:** Added `*://*.transfermarkt.com/*` to `host_permissions`.
+2. **Stats aggregation refactor (`content_script.ts`):** Replaced `validRows[last]` (domestic-only) with a season-group algorithm. Walks `stats_standard` rows backwards from the bottom, stops at the first `tr.spacer` to isolate the current season's block, then either uses the rolled-up "Total" row (detected by `comp_level` being empty or matching `/Comps|Leagues/i`) or sums all individual competition rows. Correctly aggregates League + Cups + Continental appearances, goals, assists, and minutes.
+3. **Background Service Worker refactor (`background.ts`):**
+   - `lookupPlayerByFbrefUrl()` — GET with `select=id,transfermarkt_url` (data minimization); player not found → fatal error.
+   - `isTrustedTMUrl()` — validates URL against `TM_ALLOWED_ORIGINS` allowlist before any fetch (SSRF prevention).
+   - `fetchTMData()` — fetches TM page with browser-like headers to avoid 403; all failures (network, parse) return `{ position: null, market_value: null }` and sync continues.
+   - `parseTMPosition()` + `parseTMMarketValue()` — three-layer regex fallback for each field.
+   - `normalizeMarketValue()` — converts TM format (`€45.00m` → `€45M`, `€800k` → `€800K`).
+   - `buildPatchPayload()` — strict allowlist; TM position overrides FBref; `market_value` only written if TM parse succeeded (never overwrites with null).
+   - PATCH now filters by `id` (UUID from lookup) instead of `fbref_url` for precision.
+   - Removed raw `console.error` of Supabase error body (SECURITY_BEST_PRACTICES §3 compliance).
+4. **Data source priority:**
+   - `position` → Transfermarkt (primary), FBref fallback, null if both fail
+   - `market_value` → Transfermarkt only (not overwritten if TM fails)
+   - `stats_*` → FBref, aggregated across all competitions
+   - `preferred_foot`, `height_cm`, `weight_kg` → FBref
+5. **No DB migration required. No frontend changes required.**
 
 ---
 
