@@ -13,14 +13,9 @@ from curl_cffi import requests
 # The critical values are cf_clearance and __cf_bm.
 # ---------------------------------------------------------------------------
 COOKIE_STRING = (
-    "_ga_80FRT7VJ60=GS2.1.s1775000069$o4$g0$t1775000130$j60$l0$h0; "
-    "_ga_T897NZ0GWZ=GS2.1.s1775000069$o4$g0$t1775000130$j60$l0$h0; "
-    "__hssc=218152582.1.1775000070271; "
-    "__hstc=218152582.ba3b3f98dba94a9ce5c59ea5d53f73a6.1774920923972.1774981249296.1775000070271.3; "
-    "hubspotutk=ba3b3f98dba94a9ce5c59ea5d53f73a6; "
-    "_ga=GA1.1.82536294.1774920923; "
-    "cf_clearance=NN61J4JxWZMM6b3IxsSEnUG4YKKBLvXHmVe6g3WN5eE-1775000067-1.2.1.1-x4u825pgmtuRiZkdwTeiIA9uhw.sql7WEheuFt2qcYzNLT_A8wIJQGkUf87dqHvrS7iGlLa14xNqyuLXXlNclCN.4SDkV.a0PmfI_jPQp1z2IGjBBvwe8xxwQlkCfiWKAh1JXQEl7Xf.NXF43dzKlFga7qyxjgZ_qzR6eh5E0wTsYOfkTnlsk__Sg8MuaG31KpPsNzQnQEB8RpjMZmxsijS9oeU9GLZnU0qNS6EhhI0; "
-    "__cf_bm=Oh4cn6mhxk0ql18.TX7t6_9Vgu8UZ8u.m6IN9QnLCuU-1775000067.5712624-1.0.1.1-HVocZwHYL_k8uLu6.YVi.vunzZe5rDpGFIuLmitPkQt0M6VuZCfEyHewEj.ce0Rvs3VmCf2YZzUIzvbZfh6S7.P_u42p6O9rjrbfNmfdQXmLk_8zGqSj8OY2PLN17CJT"
+    # Paste your cookie string from "Copy as cURL" here.
+    # NEVER commit real cookie values to git.
+    ""
 )
 
 # Exact headers from "Copy as cURL" — order and values matter for Cloudflare.

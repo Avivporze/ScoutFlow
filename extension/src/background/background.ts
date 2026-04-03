@@ -66,8 +66,7 @@ async function patchPlayer(id: string, payload: Record<string, unknown>, token: 
     },
   );
   if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`Database error (${resp.status}): ${body}`);
+    throw new Error('Failed to update player. Please try again.');
   }
 }
 
@@ -86,8 +85,7 @@ async function createPlayer(payload: Record<string, unknown>, token: string): Pr
     },
   );
   if (!resp.ok) {
-    const body = await resp.text();
-    throw new Error(`Database error (${resp.status}): ${body}`);
+    throw new Error('Failed to create player. Please try again.');
   }
   const rows = await resp.json();
   return rows[0]?.id;
@@ -164,7 +162,8 @@ async function handleSyncPlayer(
 // ── Message Listener ──────────────────────────────────────────────────────────
 
 chrome.runtime.onMessage.addListener(
-  (message: { type: string; payload: Record<string, unknown> }, _sender, sendResponse) => {
+  (message: { type: string; payload: Record<string, unknown> }, sender, sendResponse) => {
+    if (!sender.url || !/transfermarkt\.com/i.test(sender.url)) return;
     if (message.type !== 'SYNC_PLAYER') return;
 
     handleSyncPlayer(message.payload)

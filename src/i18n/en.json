@@ -23,21 +23,8 @@
   "common": {
     "loading": "Loading…",
     "error": "An error occurred. Please try again.",
-    "save": "Save",
     "saving": "Saving…",
-    "cancel": "Cancel",
-    "delete": "Delete",
-    "edit": "Edit",
-    "add": "Add",
-    "search": "Search",
-    "noResults": "No results found.",
-    "optional": "optional"
-  },
-  "pages": {
-    "dashboard": "Dashboard",
-    "players": "Players",
-    "filter": "Advanced Filter",
-    "settings": "Settings"
+    "cancel": "Cancel"
   },
   "grid": {
     "title": "Players",
@@ -47,9 +34,7 @@
     "noPlayers": "No players yet.",
     "loadError": "Failed to load players. Please refresh the page.",
     "rowCount": "{{filtered}} of {{total}} players",
-    "statsNever": "Never",
-    "statsNoData": "No stats yet — sync from Transfermarkt to populate.",
-    "statsLastUpdated": "Last updated: {{date}}"
+    "statsNever": "Never"
   },
   "playerForm": {
     "addTitle": "Add Player",
@@ -71,7 +56,6 @@
       "secondNationality": "Second Nationality",
       "preferredFoot": "Preferred Foot",
       "heightCm": "Height (cm)",
-      "weightKg": "Weight (kg)",
       "currentClub": "Current Club",
       "league": "League",
       "position": "Position",
@@ -79,7 +63,6 @@
       "marketValue": "Market Value",
       "agentName": "Agent Name",
       "agentContact": "Agent Contact",
-      "fbrefUrl": "FBref URL",
       "transfermarktUrl": "Transfermarkt URL",
       "instagram": "Instagram",
       "youtube": "YouTube",
@@ -89,7 +72,8 @@
     },
     "errors": {
       "required": "This field is required",
-      "invalidUrl": "Must be a valid URL (https://...)"
+      "invalidUrl": "Must be a valid URL (https://...)",
+      "invalidTeam": "Please select a valid team"
     }
   },
   "detail": {
@@ -102,8 +86,7 @@
     "activity": "Activity",
     "noNotes": "No notes yet. Start the discussion!",
     "addNotePlaceholder": "Write a note…",
-    "postNote": "Post Note",
-    "noValue": "—"
+    "postNote": "Post Note"
   },
   "sidebar": {
     "collapse": "Collapse",
@@ -118,7 +101,6 @@
     "pipeline": "Positional Pipeline",
     "recentlyAdded": "Recently Added",
     "age": "Age",
-    "notesLast7": "Notes (last 7 days)",
     "watchlistCount": "On Watchlist",
     "teamsScouted": "Teams Scouted",
     "countriesScouted": "Countries",
@@ -166,13 +148,11 @@
     "minutes": "Min",
     "foot": "Foot",
     "height": "Height",
-    "weight": "Weight",
     "secondNat": "2nd Nat.",
     "agent": "Agent",
     "agentContact": "Agent Contact",
     "dob": "DOB",
     "tmUrl": "Transfermarkt",
-    "fbrefUrl": "FBref",
     "socials": "Socials",
     "updated": "Updated",
     "addedBy": "Added By",
@@ -285,7 +265,6 @@
       "description": "Export your entire player database as a backup file.",
       "exportCsv": "Export as CSV",
       "exportJson": "Export as JSON",
-      "exporting": "Exporting…",
       "success": "Export complete — file downloaded",
       "noData": "No player data to export."
     }

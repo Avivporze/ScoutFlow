@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -9,12 +10,11 @@ import {
   type SortingState,
   type VisibilityState,
 } from '@tanstack/react-table'
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Download, X } from 'lucide-react'
 import { PageWrapper } from '@/components/layout/PageWrapper'
 import { PlayerDetailPanel } from '@/components/players/PlayerDetailPanel'
 import { buildColumns, HIDDEN_BY_DEFAULT } from '@/components/table/columns'
 import { useFilteredPlayers } from '@/hooks/useFilteredPlayers'
-import { useTeams } from '@/hooks/useTeams'
 import type { Player } from '@/types/player'
 import type { PlayerFilters } from '@/api/players'
 
@@ -94,23 +94,49 @@ function exportToCSV(players: Player[]) {
 export function AdvancedFilterPage() {
   const { t, i18n } = useTranslation()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { teamsMap } = useTeams()
   const [sorting, setSorting] = useState<SortingState>([])
-  const [columnVisibility] = useState<VisibilityState>(HIDDEN_BY_DEFAULT)
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(HIDDEN_BY_DEFAULT)
+  const [showColPicker, setShowColPicker] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
+  const colButtonRef = useRef<HTMLButtonElement>(null)
+  const colDropdownRef = useRef<HTMLDivElement>(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
 
   // Local state for debounced text inputs
   const [localSearch, setLocalSearch] = useState(searchParams.get('search') ?? '')
   const [localNationality, setLocalNationality] = useState(searchParams.get('nationality') ?? '')
   const [localLeague, setLocalLeague] = useState(searchParams.get('league') ?? '')
 
+  useEffect(() => {
+    if (!showColPicker) return
+    function handleClickOutside(e: MouseEvent) {
+      const target = e.target as Node
+      if (
+        (!colButtonRef.current || !colButtonRef.current.contains(target)) &&
+        (!colDropdownRef.current || !colDropdownRef.current.contains(target))
+      ) {
+        setShowColPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showColPicker])
+
+  const toggleColPicker = () => {
+    if (!showColPicker && colButtonRef.current) {
+      const rect = colButtonRef.current.getBoundingClientRect()
+      setDropdownPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+    }
+    setShowColPicker(v => !v)
+  }
+
   const filters = useMemo(() => parseFilters(searchParams), [searchParams])
   const { players, isLoading, error } = useFilteredPlayers(filters)
 
   const columns = useMemo(
-    () => buildColumns(teamsMap, setSelectedPlayer, t),
+    () => buildColumns(setSelectedPlayer, t),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [teamsMap, i18n.language],
+    [i18n.language],
   )
 
   const table = useReactTable({
@@ -118,6 +144,7 @@ export function AdvancedFilterPage() {
     columns,
     state: { sorting, columnVisibility },
     onSortingChange: setSorting,
+    onColumnVisibilityChange: setColumnVisibility,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
   })
@@ -160,14 +187,26 @@ export function AdvancedFilterPage() {
         {/* Page header */}
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-gray-900">{t('filter.title')}</h1>
-          <button
-            onClick={() => exportToCSV(players)}
-            disabled={players.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Download size={14} />
-            {t('filter.exportCsv')}
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Column visibility toggle */}
+            <button
+              ref={colButtonRef}
+              onClick={toggleColPicker}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <Columns3 size={14} className="shrink-0" />
+              <span className="truncate">{t('grid.columns')}</span>
+            </button>
+            {/* Export CSV */}
+            <button
+              onClick={() => exportToCSV(players)}
+              disabled={players.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Download size={14} />
+              {t('filter.exportCsv')}
+            </button>
+          </div>
         </div>
 
         {/* Filter panel */}
@@ -469,6 +508,33 @@ export function AdvancedFilterPage() {
           player={selectedPlayer}
           onClose={() => setSelectedPlayer(null)}
         />
+      )}
+
+      {/* Column picker — portalled to body so parent overflow can't clip it */}
+      {showColPicker && createPortal(
+        <div
+          ref={colDropdownRef}
+          className="fixed z-50 w-52 rounded-md border border-gray-200 bg-white py-1 shadow-lg overflow-y-auto"
+          style={{ top: dropdownPos.top, right: dropdownPos.right, maxHeight: `min(24rem, calc(100vh - ${dropdownPos.top + 8}px))` }}
+        >
+          {table.getAllColumns().map(column => (
+            <label
+              key={column.id}
+              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <input
+                type="checkbox"
+                checked={column.getIsVisible()}
+                onChange={column.getToggleVisibilityHandler()}
+                className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
+              />
+              {(typeof column.columnDef.header === 'string' && column.columnDef.header)
+                ? column.columnDef.header
+                : column.id}
+            </label>
+          ))}
+        </div>,
+        document.body,
       )}
     </PageWrapper>
   )

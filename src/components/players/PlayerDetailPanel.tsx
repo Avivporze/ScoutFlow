@@ -9,7 +9,6 @@ import { SocialLinksDisplay } from './SocialLinksDisplay'
 import { PlayerNotesTab } from './PlayerNotesTab'
 import { PlayerActivityTab } from './PlayerActivityTab'
 import { useAuth } from '@/hooks/useAuth'
-import { useTeams } from '@/hooks/useTeams'
 import { updatePlayer, deletePlayer } from '@/api/players'
 import { Button } from '@/components/ui/Button'
 import type { Player, SocialLinks } from '@/types/player'
@@ -47,7 +46,6 @@ export function PlayerDetailPanel({ player, onClose }: Props) {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { profile } = useAuth()
-  const { teamsMap } = useTeams()
   const queryClient = useQueryClient()
 
   async function handleArchive() {
@@ -74,7 +72,6 @@ export function PlayerDetailPanel({ player, onClose }: Props) {
   }
 
   const socialLinks = (player.social_links ?? {}) as SocialLinks
-  const teamName = player.best_fit_team_id ? teamsMap.get(player.best_fit_team_id) : null
 
   return (
     <>
@@ -169,7 +166,6 @@ export function PlayerDetailPanel({ player, onClose }: Props) {
                 <Field label={t('playerForm.fields.secondNationality')} value={player.second_nationality} />
                 <Field label={t('playerForm.fields.preferredFoot')} value={player.preferred_foot} />
                 <Field label={t('playerForm.fields.heightCm')} value={player.height_cm ? `${player.height_cm} cm` : null} />
-                <Field label={t('playerForm.fields.weightKg')} value={player.weight_kg ? `${player.weight_kg} kg` : null} />
               </dl>
             </section>
 
@@ -217,17 +213,6 @@ export function PlayerDetailPanel({ player, onClose }: Props) {
                     Transfermarkt Profile
                   </a>
                 )}
-                {player.fbref_url && (
-                  <a
-                    href={player.fbref_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-sm text-blue-600 hover:underline"
-                  >
-                    <ExternalLink size={14} />
-                    FBref Profile
-                  </a>
-                )}
                 <SocialLinksDisplay links={socialLinks} />
               </div>
             </section>
@@ -238,7 +223,7 @@ export function PlayerDetailPanel({ player, onClose }: Props) {
                 {t('playerForm.sections.internal')}
               </h3>
               <dl className="grid grid-cols-2 gap-3">
-                <Field label={t('playerForm.fields.bestFitTeam')} value={teamName} />
+                <Field label={t('playerForm.fields.bestFitTeam')} value={player.best_fit_team_id} />
                 <Field label={t('playerForm.fields.status')} value={player.status} />
               </dl>
             </section>

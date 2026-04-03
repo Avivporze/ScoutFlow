@@ -5,11 +5,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { ChevronLeft } from 'lucide-react'
 import { usePlayers } from '@/hooks/usePlayers'
-import { useTeams } from '@/hooks/useTeams'
 import { addPlayer, updatePlayer } from '@/api/players'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { POSITIONS, PREFERRED_FOOT_OPTIONS, PLAYER_STATUS_OPTIONS } from '@/lib/constants'
+import { POSITIONS, PREFERRED_FOOT_OPTIONS, PLAYER_STATUS_OPTIONS, ISRAELI_PREMIER_LEAGUE_TEAMS } from '@/lib/constants'
+import { bestFitSchema } from '@/lib/schemas'
 import type { PlayerInsert, PlayerUpdate, SocialLinks } from '@/types/player'
 
 type FormErrors = Partial<Record<string, string>>
@@ -41,7 +41,6 @@ export function PlayerFormPage() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { players, isLoading } = usePlayers()
-  const { teams } = useTeams()
   const queryClient = useQueryClient()
 
   const existing = id ? players.find(p => p.id === id) : undefined
@@ -54,7 +53,6 @@ export function PlayerFormPage() {
   const [secondNationality, setSecondNationality] = useState('')
   const [preferredFoot, setPreferredFoot] = useState('')
   const [heightCm, setHeightCm] = useState('')
-  const [weightKg, setWeightKg] = useState('')
   const [currentClub, setCurrentClub] = useState('')
   const [league, setLeague] = useState('')
   const [position, setPosition] = useState('')
@@ -62,7 +60,6 @@ export function PlayerFormPage() {
   const [marketValue, setMarketValue] = useState('')
   const [agentName, setAgentName] = useState('')
   const [agentContact, setAgentContact] = useState('')
-  const [fbrefUrl, setFbrefUrl] = useState('')
   const [transfermarktUrl, setTransfermarktUrl] = useState('')
   const [instagram, setInstagram] = useState('')
   const [youtube, setYoutube] = useState('')
@@ -82,7 +79,6 @@ export function PlayerFormPage() {
     setSecondNationality(existing.second_nationality ?? '')
     setPreferredFoot(existing.preferred_foot ?? '')
     setHeightCm(existing.height_cm?.toString() ?? '')
-    setWeightKg(existing.weight_kg?.toString() ?? '')
     setCurrentClub(existing.current_club ?? '')
     setLeague(existing.league ?? '')
     setPosition(existing.position ?? '')
@@ -90,7 +86,6 @@ export function PlayerFormPage() {
     setMarketValue(existing.market_value ?? '')
     setAgentName(existing.agent_name ?? '')
     setAgentContact(existing.agent_contact ?? '')
-    setFbrefUrl(existing.fbref_url ?? '')
     setTransfermarktUrl(existing.transfermarkt_url ?? '')
     setInstagram(social.instagram ?? '')
     setYoutube(social.youtube ?? '')
@@ -114,14 +109,12 @@ export function PlayerFormPage() {
   // ── Validation + submission ─────────────────────────────────────────────
   function validate(): FormErrors {
     const e: FormErrors = {}
-    // Name is required UNLESS a TM URL is provided (scraper will extract name)
-    const hasTmUrl = transfermarktUrl.trim().length > 0
-    if (!firstName.trim() && !hasTmUrl) e.firstName = t('playerForm.errors.required')
-    if (!lastName.trim() && !hasTmUrl) e.lastName = t('playerForm.errors.required')
-    if (!isValidUrl(fbrefUrl)) e.fbrefUrl = t('playerForm.errors.invalidUrl')
-    if (!isValidUrl(transfermarktUrl)) e.transfermarktUrl = t('playerForm.errors.invalidUrl')
+    if (!transfermarktUrl.trim()) e.transfermarktUrl = t('playerForm.errors.required')
+    else if (!isValidUrl(transfermarktUrl)) e.transfermarktUrl = t('playerForm.errors.invalidUrl')
     if (!isValidUrl(instagram)) e.instagram = t('playerForm.errors.invalidUrl')
     if (!isValidUrl(youtube)) e.youtube = t('playerForm.errors.invalidUrl')
+    const bestFitValue = bestFitTeamId.trim() || null
+    if (!bestFitSchema.safeParse(bestFitValue).success) e.bestFitTeamId = t('playerForm.errors.invalidTeam')
     return e
   }
 
@@ -147,7 +140,6 @@ export function PlayerFormPage() {
         second_nationality: orNull(secondNationality),
         preferred_foot: (orNull(preferredFoot) as 'Left' | 'Right' | 'Both' | null),
         height_cm: heightCm.trim() ? Number(heightCm) : null,
-        weight_kg: weightKg.trim() ? Number(weightKg) : null,
         current_club: orNull(currentClub),
         league: orNull(league),
         position: orNull(position),
@@ -155,7 +147,6 @@ export function PlayerFormPage() {
         market_value: orNull(marketValue),
         agent_name: orNull(agentName),
         agent_contact: orNull(agentContact),
-        fbref_url: orNull(fbrefUrl),
         transfermarkt_url: orNull(transfermarktUrl),
         social_links,
         best_fit_team_id: orNull(bestFitTeamId),
@@ -218,17 +209,13 @@ export function PlayerFormPage() {
           <div className="grid grid-cols-2 gap-4">
             <Input
               label={t('playerForm.fields.firstName')}
-              required
               value={firstName}
               onChange={e => setFirstName(e.target.value)}
-              error={errors.firstName}
             />
             <Input
               label={t('playerForm.fields.lastName')}
-              required
               value={lastName}
               onChange={e => setLastName(e.target.value)}
-              error={errors.lastName}
             />
             <Input
               label={t('playerForm.fields.dateOfBirth')}
@@ -268,14 +255,6 @@ export function PlayerFormPage() {
               max="230"
               value={heightCm}
               onChange={e => setHeightCm(e.target.value)}
-            />
-            <Input
-              label={t('playerForm.fields.weightKg')}
-              type="number"
-              min="40"
-              max="150"
-              value={weightKg}
-              onChange={e => setWeightKg(e.target.value)}
             />
           </div>
         </section>
@@ -356,21 +335,12 @@ export function PlayerFormPage() {
             <div className="col-span-2">
               <Input
                 label={t('playerForm.fields.transfermarktUrl')}
+                required
                 type="url"
                 placeholder="https://www.transfermarkt.com/..."
                 value={transfermarktUrl}
                 onChange={e => setTransfermarktUrl(e.target.value)}
                 error={errors.transfermarktUrl}
-              />
-            </div>
-            <div className="col-span-2">
-              <Input
-                label={`${t('playerForm.fields.fbrefUrl')} (${t('common.optional', 'optional')})`}
-                type="url"
-                placeholder="https://fbref.com/en/players/..."
-                value={fbrefUrl}
-                onChange={e => setFbrefUrl(e.target.value)}
-                error={errors.fbrefUrl}
               />
             </div>
             <Input
@@ -408,10 +378,13 @@ export function PlayerFormPage() {
                 className={SELECT_CLASS}
               >
                 <option value="">{t('playerForm.fields.noTeam')}</option>
-                {teams.map(team => (
-                  <option key={team.id} value={team.id}>{team.team_name}</option>
+                {ISRAELI_PREMIER_LEAGUE_TEAMS.map(team => (
+                  <option key={team} value={team}>{team}</option>
                 ))}
               </select>
+              {errors.bestFitTeamId && (
+                <p className="text-xs text-red-600">{errors.bestFitTeamId}</p>
+              )}
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-gray-700">

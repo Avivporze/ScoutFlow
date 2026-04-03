@@ -5,7 +5,7 @@ import {
   type VisibilityState,
 } from '@tanstack/react-table'
 import type { Player } from '@/types/player'
-import { BestFitTeamCell } from './cells/BestFitTeamCell'
+import type { Json } from '@/types/database'
 import { ContractCell } from './cells/ContractCell'
 import { PlayerNameCell } from './cells/PlayerNameCell'
 import { PositionBadge } from './cells/PositionBadge'
@@ -53,9 +53,13 @@ export const HIDDEN_BY_DEFAULT: VisibilityState = {
   stats_minutes: false,
   preferred_foot: false,
   height_cm: false,
-  weight_kg: false,
   second_nationality: false,
   agent_name: false,
+  agent_contact: false,
+  date_of_birth: false,
+  transfermarkt_url: false,
+  social_links: false,
+  updated_at: false,
   added_by: false,
   created_at: false,
   stats_updated_at: false,
@@ -66,7 +70,6 @@ export const HIDDEN_BY_DEFAULT: VisibilityState = {
 const col = createColumnHelper<Player>()
 
 export function buildColumns(
-  teamsMap: Map<string, string>,
   onPlayerClick: (player: Player) => void,
   t: (key: string) => string,
 ): ColumnDef<Player, unknown>[] {
@@ -104,7 +107,10 @@ export function buildColumns(
     }),
     col.accessor('best_fit_team_id', {
       header: t('columnHeaders.bestFit'),
-      cell: info => <BestFitTeamCell teamId={info.getValue()} teamsMap={teamsMap} />,
+      cell: info => {
+        const v = info.getValue()
+        return v ? <span className="text-gray-700">{v}</span> : <span className="text-gray-400">—</span>
+      },
     }),
     col.accessor('market_value', {
       id: 'market_value',
@@ -147,13 +153,6 @@ export function buildColumns(
         return v !== null ? `${v} cm` : '—'
       },
     }),
-    col.accessor('weight_kg', {
-      header: t('columnHeaders.weight'),
-      cell: info => {
-        const v = info.getValue()
-        return v !== null ? `${v} kg` : '—'
-      },
-    }),
     col.accessor('second_nationality', {
       header: t('columnHeaders.secondNat'),
       cell: info => info.getValue() ?? '—',
@@ -161,6 +160,59 @@ export function buildColumns(
     col.accessor('agent_name', {
       header: t('columnHeaders.agent'),
       cell: info => info.getValue() ?? '—',
+    }),
+    col.accessor('agent_contact', {
+      header: t('columnHeaders.agentContact'),
+      cell: info => info.getValue() ?? '—',
+    }),
+    col.accessor('date_of_birth', {
+      header: t('columnHeaders.dob'),
+      cell: info => {
+        const v = info.getValue()
+        return v
+          ? new Date(v).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          : '—'
+      },
+    }),
+    col.accessor('transfermarkt_url', {
+      header: t('columnHeaders.tmUrl'),
+      cell: info => {
+        const v = info.getValue()
+        if (!v) return '—'
+        return (
+          <a
+            href={v}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline truncate block max-w-[150px]"
+            title={v}
+          >
+            TM Profile
+          </a>
+        )
+      },
+    }),
+    col.accessor('social_links', {
+      header: t('columnHeaders.socials'),
+      cell: info => {
+        const v = info.getValue() as Record<string, string> | Json
+        if (!v || typeof v !== 'object' || Array.isArray(v)) return '—'
+        const links = Object.entries(v as Record<string, string>).filter(([, url]) => url)
+        if (links.length === 0) return '—'
+        return (
+          <span className="text-xs text-gray-600" title={links.map(([k]) => k).join(', ')}>
+            {links.length} link{links.length > 1 ? 's' : ''}
+          </span>
+        )
+      },
+    }),
+    col.accessor('updated_at', {
+      header: t('columnHeaders.updated'),
+      cell: info =>
+        new Date(info.getValue()).toLocaleDateString('en-GB', {
+          year: 'numeric',
+          month: 'short',
+        }),
     }),
     col.accessor('added_by', {
       header: t('columnHeaders.addedBy'),

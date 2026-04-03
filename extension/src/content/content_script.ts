@@ -651,7 +651,7 @@ async function extractStats(): Promise<SeasonStats> {
 
   const thumbs = document.querySelectorAll('.tm-player-performance__thumb');
   if (thumbs.length === 0) {
-    console.warn('[ScoutFlow] No competition thumbs found.');
+    // No competition thumbs found — stats will be zero
     return zero;
   }
 
@@ -753,7 +753,6 @@ async function extractData(): Promise<TMPlayerData | null> {
   try {
     const { first_name, last_name } = extractName();
     if (!first_name && !last_name) {
-      console.error('[ScoutFlow] Could not extract player name.');
       return null;
     }
 
@@ -793,7 +792,6 @@ async function extractData(): Promise<TMPlayerData | null> {
       transfermarkt_url: window.location.href,
     };
   } catch (err) {
-    console.error('[ScoutFlow] Extraction error:', err);
     return null;
   }
 }
@@ -807,7 +805,7 @@ async function run(): Promise<void> {
   // Wait for Svelte performance component to render (loads async)
   const perfReady = await waitForPerformanceData();
   if (!perfReady) {
-    console.warn('[ScoutFlow] Performance data did not appear within 5s — proceeding with available data.');
+    // Performance data did not render — proceeding with available data
   }
 
   const data = await extractData();

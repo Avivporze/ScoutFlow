@@ -11,3 +11,20 @@ export const PLAYER_STATUS_OPTIONS = [
   { value: 'watchlist', label: 'Watchlist' },
   { value: 'archived', label: 'Archived' },
 ] as const
+
+export const ISRAELI_PREMIER_LEAGUE_TEAMS = [
+  'Maccabi Tel Aviv',
+  'Maccabi Haifa',
+  "Hapoel Be'er Sheva",
+  'Beitar Jerusalem',
+  'Hapoel Haifa',
+  'Hapoel Tel Aviv',
+  'Maccabi Netanya',
+  'Maccabi Bnei Reineh',
+  'Hapoel Jerusalem',
+  'F.C. Ashdod',
+  'Hapoel Hadera',
+  'Ironi Tiberias',
+  'Ironi Kiryat Shmona',
+  'Maccabi Petah Tikva',
+] as const

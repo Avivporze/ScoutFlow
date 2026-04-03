@@ -23,21 +23,8 @@
   "common": {
     "loading": "Cargando…",
     "error": "Ocurrió un error. Inténtalo de nuevo.",
-    "save": "Guardar",
     "saving": "Guardando…",
-    "cancel": "Cancelar",
-    "delete": "Eliminar",
-    "edit": "Editar",
-    "add": "Añadir",
-    "search": "Buscar",
-    "noResults": "No se encontraron resultados.",
-    "optional": "opcional"
-  },
-  "pages": {
-    "dashboard": "Panel",
-    "players": "Jugadores",
-    "filter": "Filtro avanzado",
-    "settings": "Ajustes"
+    "cancel": "Cancelar"
   },
   "grid": {
     "title": "Jugadores",
@@ -48,8 +35,7 @@
     "loadError": "Error al cargar jugadores. Por favor recarga la página.",
     "rowCount": "{{filtered}} de {{total}} jugadores",
     "statsNever": "Nunca",
-    "statsNoData": "Sin estadísticas aún — sincroniza desde Transfermarkt para completar.",
-    "statsLastUpdated": "Última actualización: {{date}}"
+    "statsNever": "Nunca"
   },
   "playerForm": {
     "addTitle": "Añadir jugador",
@@ -71,7 +57,6 @@
       "secondNationality": "Segunda nacionalidad",
       "preferredFoot": "Pie preferido",
       "heightCm": "Altura (cm)",
-      "weightKg": "Peso (kg)",
       "currentClub": "Club actual",
       "league": "Liga",
       "position": "Posición",
@@ -79,7 +64,6 @@
       "marketValue": "Valor de mercado",
       "agentName": "Nombre del agente",
       "agentContact": "Contacto del agente",
-      "fbrefUrl": "URL de FBref",
       "transfermarktUrl": "URL de Transfermarkt",
       "instagram": "Instagram",
       "youtube": "YouTube",
@@ -89,7 +73,8 @@
     },
     "errors": {
       "required": "Este campo es obligatorio",
-      "invalidUrl": "Debe ser una URL válida (https://...)"
+      "invalidUrl": "Debe ser una URL válida (https://...)",
+      "invalidTeam": "Seleccione un equipo válido"
     }
   },
   "detail": {
@@ -102,8 +87,7 @@
     "activity": "Actividad",
     "noNotes": "Aún no hay notas. ¡Inicia la conversación!",
     "addNotePlaceholder": "Escribe una nota…",
-    "postNote": "Publicar nota",
-    "noValue": "—"
+    "postNote": "Publicar nota"
   },
   "sidebar": {
     "collapse": "Contraer",
@@ -118,7 +102,6 @@
     "pipeline": "Pipeline de Posiciones",
     "recentlyAdded": "Añadidos Recientemente",
     "age": "Edad",
-    "notesLast7": "Notas (últimos 7 días)",
     "watchlistCount": "En Seguimiento",
     "teamsScouted": "Equipos Seguidos",
     "countriesScouted": "Países",
@@ -166,13 +149,11 @@
     "minutes": "Min",
     "foot": "Pie",
     "height": "Altura",
-    "weight": "Peso",
     "secondNat": "2ª Nac.",
     "agent": "Agente",
     "agentContact": "Contacto Agente",
     "dob": "F. Nac.",
     "tmUrl": "Transfermarkt",
-    "fbrefUrl": "FBref",
     "socials": "Redes",
     "updated": "Actualiz.",
     "addedBy": "Añadido Por",
@@ -285,7 +266,6 @@
       "description": "Exporta toda tu base de datos de jugadores como archivo de respaldo.",
       "exportCsv": "Exportar como CSV",
       "exportJson": "Exportar como JSON",
-      "exporting": "Exportando…",
       "success": "Exportación completada — archivo descargado",
       "noData": "No hay datos de jugadores para exportar."
     }

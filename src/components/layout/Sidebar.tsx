@@ -42,7 +42,7 @@ export function Sidebar({ collapsed, onToggle, onCloseMobile }: SidebarProps) {
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
             <Shield size={16} />
           </div>
-          {!collapsed && <span className="text-[17px] font-bold text-gray-900 tracking-tight">ScoutDesk</span>}
+          {!collapsed && <span className="text-[17px] font-bold text-gray-900 tracking-tight">ScoutFlow</span>}
         </div>
       </div>
 

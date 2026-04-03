@@ -1,22 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { User } from '@supabase/supabase-js';
-import { LogIn, LogOut, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { LogIn, LogOut, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../supabase';
 
-type TabStatus = 'tm_player' | 'fbref' | 'other';
-
-function detectTabStatus(url: string | undefined): TabStatus {
-  if (!url) return 'other';
-  if (/transfermarkt\.com\/.*\/profil\/spieler\//i.test(url)) return 'tm_player';
-  if (/fbref\.com/i.test(url)) return 'fbref';
-  return 'other';
+function isOnTmPlayerProfile(url: string | undefined): boolean {
+  if (!url) return false;
+  return /transfermarkt\.com\/.*\/profil\/spieler\//i.test(url);
 }
 
 function Popup() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tabStatus, setTabStatus] = useState<TabStatus>('other');
+  const [onTmProfile, setOnTmProfile] = useState(false);
 
   // Login form state
   const [email, setEmail] = useState('');
@@ -40,7 +36,7 @@ function Popup() {
 
     // Detect current tab URL
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      setTabStatus(detectTabStatus(tabs[0]?.url));
+      setOnTmProfile(isOnTmPlayerProfile(tabs[0]?.url));
     });
 
     return () => subscription.unsubscribe();
@@ -84,21 +80,13 @@ function Popup() {
   if (user) {
     return (
       <div className="flex flex-col h-full bg-white">
-        <div className={`${tabStatus === 'tm_player' ? 'bg-green-600 border-green-700' : 'bg-blue-600 border-blue-700'} text-white p-4 items-center justify-center flex flex-col pt-8 pb-6 border-b`}>
+        <div className={`${onTmProfile ? 'bg-green-600 border-green-700' : 'bg-blue-600 border-blue-700'} text-white p-4 items-center justify-center flex flex-col pt-8 pb-6 border-b`}>
           <div className="bg-white/20 p-3 rounded-full mb-3">
-             {tabStatus === 'fbref' ? (
-               <AlertTriangle className="w-8 h-8 text-white" />
-             ) : (
-               <CheckCircle2 className="w-8 h-8 text-white" />
-             )}
+             <CheckCircle2 className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-lg font-semibold tracking-tight">ScoutFlow Connected</h1>
-          <p className={`${tabStatus === 'tm_player' ? 'text-green-100' : tabStatus === 'fbref' ? 'text-blue-100' : 'text-blue-100'} text-sm mt-1`}>
-            {tabStatus === 'tm_player'
-              ? 'Syncing player data...'
-              : tabStatus === 'fbref'
-              ? 'FBref is no longer used'
-              : 'Ready to extract Transfermarkt data'}
+          <p className={`${onTmProfile ? 'text-green-100' : 'text-blue-100'} text-sm mt-1`}>
+            {onTmProfile ? 'Syncing player data...' : 'Ready to extract Transfermarkt data'}
           </p>
         </div>
 
@@ -107,11 +95,7 @@ function Popup() {
           <p className="font-medium text-gray-900 truncate bg-gray-50 p-2 rounded border border-gray-200">{user.email}</p>
 
           <div className="mt-8">
-            {tabStatus === 'fbref' ? (
-              <p className="text-xs text-amber-700 bg-amber-50 p-3 rounded-lg border border-amber-200 mb-6">
-                ScoutFlow now uses Transfermarkt for syncing. Please navigate to the player's Transfermarkt profile instead.
-              </p>
-            ) : tabStatus === 'tm_player' ? (
+            {onTmProfile ? (
               <p className="text-xs text-green-700 bg-green-50 p-3 rounded-lg border border-green-100 mb-6">
                 Player data is being extracted and synced automatically.
               </p>

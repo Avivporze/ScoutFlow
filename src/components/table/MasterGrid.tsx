@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -14,7 +15,6 @@ import {
 } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ArrowUpDown, Columns3, Search, GripVertical } from 'lucide-react'
 import { usePlayers } from '@/hooks/usePlayers'
-import { useTeams } from '@/hooks/useTeams'
 import { PlayerDetailPanel } from '@/components/players/PlayerDetailPanel'
 import { buildColumns, HIDDEN_BY_DEFAULT, playerSearchFilter } from './columns'
 import type { Player } from '@/types/player'
@@ -39,6 +39,18 @@ import {
 import { restrictToHorizontalAxis } from '@dnd-kit/modifiers'
 import { CSS } from '@dnd-kit/utilities'
 import { useVirtualizer } from '@tanstack/react-virtual'
+
+const LS_COL_VISIBILITY = 'scoutflow:column-visibility'
+const LS_COL_ORDER = 'scoutflow:column-order'
+
+function loadJson<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
 
 const DraggableHeader = ({ header }: { header: Header<Player, unknown> }) => {
   const { attributes, isDragging, listeners, setNodeRef, transform } =
@@ -101,16 +113,29 @@ interface MasterGridProps {
 export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
   const { t, i18n } = useTranslation()
   const { players, isLoading, error } = usePlayers()
-  const { teamsMap } = useTeams()
 
   const [sorting, setSorting] = useState<SortingState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(HIDDEN_BY_DEFAULT)
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(
+    () => loadJson(LS_COL_VISIBILITY, HIDDEN_BY_DEFAULT),
+  )
   const [globalFilter, setGlobalFilter] = useState('')
   const [showColPicker, setShowColPicker] = useState(false)
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
-  const [columnOrder, setColumnOrder] = useState<string[]>([])
+  const [columnOrder, setColumnOrder] = useState<string[]>(
+    () => loadJson(LS_COL_ORDER, []),
+  )
 
   const navigate = useNavigate()
+
+  useEffect(() => {
+    localStorage.setItem(LS_COL_VISIBILITY, JSON.stringify(columnVisibility))
+  }, [columnVisibility])
+
+  useEffect(() => {
+    if (columnOrder.length > 0) {
+      localStorage.setItem(LS_COL_ORDER, JSON.stringify(columnOrder))
+    }
+  }, [columnOrder])
 
   // When contractAlertMode is active, pre-filter to players whose contracts
   // expire within the next 12 months (future-only, non-archived).
@@ -127,12 +152,18 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
     )
   }, [players, contractAlertMode])
 
-  const colPickerRef = useRef<HTMLDivElement>(null)
+  const colButtonRef = useRef<HTMLButtonElement>(null)
+  const colDropdownRef = useRef<HTMLDivElement>(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
 
   useEffect(() => {
     if (!showColPicker) return
     function handleClickOutside(e: MouseEvent) {
-      if (colPickerRef.current && !colPickerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node
+      if (
+        (!colButtonRef.current || !colButtonRef.current.contains(target)) &&
+        (!colDropdownRef.current || !colDropdownRef.current.contains(target))
+      ) {
         setShowColPicker(false)
       }
     }
@@ -140,10 +171,18 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showColPicker])
 
+  const toggleColPicker = () => {
+    if (!showColPicker && colButtonRef.current) {
+      const rect = colButtonRef.current.getBoundingClientRect()
+      setDropdownPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+    }
+    setShowColPicker(v => !v)
+  }
+
   const columns = useMemo(
-    () => buildColumns(teamsMap, setSelectedPlayer, t),
+    () => buildColumns(setSelectedPlayer, t),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [teamsMap, i18n.language],
+    [i18n.language],
   )
 
   const table = useReactTable({
@@ -215,35 +254,14 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
           <h1 className="text-xl font-semibold text-gray-900">{t('grid.title')}</h1>
           <div className="flex items-center gap-2">
             {/* Column visibility toggle */}
-            <div ref={colPickerRef} className="relative">
-              <button
-                onClick={() => setShowColPicker(v => !v)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 max-w-full"
-              >
-                <Columns3 size={14} className="shrink-0" />
-                <span className="truncate">{t('grid.columns')}</span>
-              </button>
-              {showColPicker && (
-                <div className="absolute right-0 sm:left-auto top-full z-10 mt-1 w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg max-h-64 overflow-y-auto">
-                  {table.getAllColumns().map(column => (
-                    <label
-                      key={column.id}
-                      className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={column.getIsVisible()}
-                        onChange={column.getToggleVisibilityHandler()}
-                        className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
-                      />
-                      {typeof column.columnDef.header === 'string'
-                        ? column.columnDef.header
-                        : column.id}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+            <button
+              ref={colButtonRef}
+              onClick={toggleColPicker}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 max-w-full"
+            >
+              <Columns3 size={14} className="shrink-0" />
+              <span className="truncate">{t('grid.columns')}</span>
+            </button>
             {/* Add Player button */}
             <Link
               to="/players/new"
@@ -320,7 +338,7 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
                   virtualItems.map((virtualRow) => (
                     <tr key={virtualRow.key} className="h-[45px]">
                       {table.getVisibleLeafColumns().map(col => (
-                        <td key={col.id} className="px-3 py-2.5">
+                        <td key={col.id} className="py-2.5 pl-9 pr-3">
                           <div className="h-4 animate-pulse rounded bg-gray-100" />
                         </td>
                       ))}
@@ -341,7 +359,7 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
                     return (
                       <tr key={row.id} className="hover:bg-gray-50 h-[45px]">
                         {row.getVisibleCells().map(cell => (
-                          <td key={cell.id} className="px-3 py-2.5">
+                          <td key={cell.id} className="py-2.5 pl-9 pr-3">
                             {flexRender(cell.column.columnDef.cell, cell.getContext())}
                           </td>
                         ))}
@@ -377,6 +395,33 @@ export function MasterGrid({ contractAlertMode = false }: MasterGridProps) {
           player={selectedPlayer}
           onClose={() => setSelectedPlayer(null)}
         />
+      )}
+
+      {/* Column picker — portalled to body so parent overflow can't clip it */}
+      {showColPicker && createPortal(
+        <div
+          ref={colDropdownRef}
+          className="fixed z-50 w-52 rounded-md border border-gray-200 bg-white py-1 shadow-lg overflow-y-auto"
+          style={{ top: dropdownPos.top, right: dropdownPos.right, maxHeight: `min(24rem, calc(100vh - ${dropdownPos.top + 8}px))` }}
+        >
+          {table.getAllColumns().map(column => (
+            <label
+              key={column.id}
+              className="flex cursor-pointer items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+            >
+              <input
+                type="checkbox"
+                checked={column.getIsVisible()}
+                onChange={column.getToggleVisibilityHandler()}
+                className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
+              />
+              {(typeof column.columnDef.header === 'string' && column.columnDef.header)
+                ? column.columnDef.header
+                : column.id}
+            </label>
+          ))}
+        </div>,
+        document.body,
       )}
     </>
   )
