@@ -17,6 +17,8 @@
 | 7.0 | 2026-04-02 | **Phase 7 complete: V2 Dashboard rebuilt with Top Performers, Pipeline, and KPI cards + Strict Security Audit performed.** |
 | 7.0 | 2026-04-02 | **Pre-launch Security Audit complete: Patched PostgREST injection, enforced strict auth.uid() based RLS with admin bypass. Ready for MVP Vercel Deployment.** |
 | 8.0 | 2026-04-03 | **Phase 8: Dual-Source Data Pipeline. Chrome Extension upgraded from single-source (FBref) to dual-source (FBref + Transfermarkt). Background Service Worker orchestrates TM fetch; position and market value populated from TM. FBref stats now aggregated across ALL competitions via season-group algorithm. SSRF prevention, data minimization, and error-graceful soft-skip on TM failure.** |
+| 9.0 | 2026-04-03 | **Phase 9: Step-by-step scraper rebuild pivot. Step 0+1 complete: Master Grid now exposes all 27 DB fields as columns (6 new hidden-by-default columns added). Step 2 interactive data mapping pending.** |
+| 10.0 | 2026-04-03 | **Phase 10: Total Migration to Transfermarkt. FBref retired. Single-source TM architecture — content script extracts all data from TM DOM, background worker simplified 70%. Auto-create players by URL.** |
 
 ---
 
@@ -947,6 +949,64 @@ User visits an FBref player page → content script extracts data → one messag
    - `preferred_foot`, `height_cm`, `weight_kg` → FBref
 5. **No DB migration required. No frontend changes required.**
 
+### Phase 9: Step-by-Step Scraper Rebuild (UI-First + Interactive Data Mapping)
+
+**Status: In Progress**
+
+> **Pivot (2026-04-03):** Previous data extraction had partial successes and partial failures. Adopting a strict step-by-step approach: fix the Master Grid UI first, then interactively map each data field before touching scraper code.
+
+**Step 0: Documentation & Security Alignment** ✅ COMPLETE
+- Read and internalized `SCOUT_APP_PROJECT_PLAN.md` and `SECURITY_BEST_PRACTICES.md`.
+- Updated project plan to reflect the UI-first + interactive data mapping pivot.
+
+**Step 1: Fix Master Grid UI (Frontend First)** ✅ COMPLETE
+- Audited database schema vs. frontend columns. Found 6 DB fields missing from the grid: `date_of_birth` (raw), `agent_contact`, `transfermarkt_url`, `fbref_url`, `social_links`, `updated_at`.
+- Added all 6 as hidden-by-default toggleable columns in `columns.tsx`.
+- Added i18n translations (EN + ES) for all new column headers.
+- **Every single `players` table field is now accessible in the Master Grid.**
+- Total columns: 28 (13 default visible + 15 hidden by default).
+
+**Step 2: Interactive Data Mapping** ✅ COMPLETE
+- Interviewed user for all 20 scrapable fields. Final source assignments and extraction logic below.
+
+**Data Source Mapping (Finalized):**
+
+| # | DB Field | Source | Extraction Logic |
+|---|----------|--------|------------------|
+| 1 | `first_name` | FBref | Parse `<h1>` text, split on space, take first token |
+| 2 | `last_name` | FBref | Parse `<h1>` text, split on space, take remaining tokens joined |
+| 3 | `date_of_birth` | FBref | `#necro-birth[data-birth]` attribute |
+| 4 | `nationality` | FBref | First `a[href*="/country/"]` inside `#meta` |
+| 5 | `second_nationality` | FBref | Second `a[href*="/country/"]` inside `#meta` (null if only one) |
+| 6 | `preferred_foot` | FBref | Regex `/Footed:\s*(\w+)/` in bio paragraph → map to `Left`/`Right`/`Both` |
+| 7 | `height_cm` | FBref | Regex `/(\d{2,3})\s*cm/` from bio text |
+| 8 | `weight_kg` | FBref | Regex `/(\d{2,3})\s*kg/` from bio text |
+| 9 | `current_club` | **TM** | Parse from TM player profile page (club name) |
+| 10 | `league` | **TM** | Parse from TM player profile page (competition/league name) |
+| 11 | `position` | **TM** | Parse TM position string → map via `TM_POSITION_MAP` to internal enum codes |
+| 12 | `contract_expiry` | **TM** | Parse contract end date from TM profile |
+| 13 | `market_value` | **TM** | Parse `€` + digits + `m`/`k` → normalize to `€45M` / `€800K` format |
+| 14 | `agent_name` | **TM** | Parse agent/agency name from TM player profile |
+| 15 | `agent_contact` | **TM** | Parse agent contact info from TM profile (if available) |
+| 16 | `stats_matches` | FBref | Current season `stats_standard` table → SUM `games` across all competition rows |
+| 17 | `stats_goals` | FBref | Current season `stats_standard` table → SUM `goals` across all competition rows |
+| 18 | `stats_assists` | FBref | Current season `stats_standard` table → SUM `assists` across all competition rows |
+| 19 | `stats_minutes` | FBref | Current season `stats_standard` table → SUM `minutes` across all competition rows |
+| 20 | `social_links` | **TM** | Extract Instagram / social media links from TM profile → `{ instagram: "url" }` |
+
+**Stats Aggregation Rule (FBref — Critical):**
+Locate the current season block (e.g., "2025-2026") in `stats_standard`. If a rolled-up Total row exists (comp_level empty or `/Comps|Leagues/i`), use it. Otherwise SUM all individual competition rows within that season. **Never** use the career total from `<tfoot>`.
+
+**Input Workflow:**
+User provides both `fbref_url` and `transfermarkt_url` first. The scraper triggers enrichment when both URLs are present. Name is populated from FBref first to satisfy the app's full-name requirement.
+
+**App-Managed Fields (no scraping):**
+`id`, `best_fit_team_id`, `status`, `added_by`, `created_at`, `updated_at`, `stats_updated_at`
+
+**Step 3: Implement Dual-Source Scraper** — IN PROGRESS
+- Refactor `content_script.ts`: FBref-only extraction (remove position/club, add second_nationality).
+- Refactor `background.ts`: Expand TM parsing (club, league, contract, agent, social links). Orchestrate dual-source merge with strict enum/type validation before Supabase PATCH.
+
 ---
 
 ## 9. Key Decisions Log
@@ -1094,5 +1154,42 @@ When the scraper updates a player's stats, the `log_player_updated` database tri
 
 ---
 
-*Last updated: April 2, 2026*
-*Status: READY FOR MVP VERCEL DEPLOYMENT — Phases 1-5 & 7 complete, Phase 6 Frozen*
+---
+
+### Phase 10: Total Migration to Transfermarkt (Single-Source Architecture)
+
+> **Status:** Complete. FBref retired. Transfermarkt is now the exclusive data source.
+
+**Why:** FBref became unreliable due to Cloudflare Turnstile blocking automated access. Transfermarkt provides all 28 player fields from a single page, eliminating the complexity of dual-source orchestration.
+
+**What changed:**
+1. **Content Script** — Completely rewritten to extract all data from TM player profile DOM: name, DOB, nationalities, height, foot, position, club, league, contract, market value, agent, social links, and season stats.
+2. **Background Worker** — Simplified from ~617 lines to ~170 lines. No more dual-source merging or TM HTML fetching via regex. Receives DOM-extracted data from content script, looks up player by `transfermarkt_url`, PATCHes Supabase. Auto-creates new players if not found.
+3. **Manifest** — Content script now matches `*://*.transfermarkt.com/*/profil/spieler/*`. FBref removed from host_permissions.
+4. **Player Form** — `transfermarkt_url` is now the primary URL field. `fbref_url` is optional. Name fields optional when TM URL provided (scraper populates them).
+5. **UI Copy** — All FBref references updated to reference Transfermarkt.
+
+**Data source mapping (all from TM):**
+| # | Field | TM Extraction Method |
+|---|-------|---------------------|
+| 1 | `first_name` | `h1 strong` text, first token |
+| 2 | `last_name` | `h1 strong` text, remaining tokens |
+| 3 | `date_of_birth` | `[itemprop="birthDate"]` or info-table "Date of birth" row |
+| 4 | `nationality` | First `.flaggenrahmen` img title |
+| 5 | `second_nationality` | Second `.flaggenrahmen` img title |
+| 6 | `preferred_foot` | Info-table "Foot:" row |
+| 7 | `height_cm` | `[itemprop="height"]` or info-table, parse "1,80 m" format |
+| 8 | `position` | `[itemprop="position"]` mapped via TM_POSITION_MAP |
+| 9 | `current_club` | `.data-header__club a` text |
+| 10 | `league` | `.data-header__league a` text/title/img-alt |
+| 11 | `contract_expiry` | Info-table "Contract:" row, normalized to ISO |
+| 12 | `market_value` | `.tm-market-value` or `.waehrung` parent, normalized |
+| 13 | `agent_name` | Info-table "Player agent:" row text |
+| 14 | `agent_contact` | Info-table "Player agent:" row link href |
+| 15 | `social_links.instagram` | `a[href*="instagram.com"]` |
+| 16-19 | `stats_*` | Performance data table, sum across competitions or use Total row |
+
+---
+
+*Last updated: April 3, 2026*
+*Status: READY FOR MVP VERCEL DEPLOYMENT — Phases 1-5, 7-10 complete, Phase 6 Frozen*
