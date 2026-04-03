@@ -34,7 +34,6 @@
     "noPlayers": "Aún no hay jugadores.",
     "loadError": "Error al cargar jugadores. Por favor recarga la página.",
     "rowCount": "{{filtered}} de {{total}} jugadores",
-    "statsNever": "Nunca",
     "statsNever": "Nunca"
   },
   "playerForm": {
