@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
   "name": "ScoutFlow Ride-Along",
-  "version": "1.0",
-  "description": "Securely extract FBref player stats to the ScoutFlow database.",
+  "version": "1.1",
+  "description": "Extract player data from Transfermarkt to the ScoutFlow database.",
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
-    "https://fbref.com/*",
     "*://*.transfermarkt.com/*",
     "https://*.supabase.co/*"
   ],
@@ -23,7 +23,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://fbref.com/en/players/*"],
+      "matches": ["*://*.transfermarkt.com/*/profil/spieler/*"],
       "js": ["content_script.js"],
       "run_at": "document_end"
     }
