@@ -114,8 +114,10 @@ export function PlayerFormPage() {
   // ── Validation + submission ─────────────────────────────────────────────
   function validate(): FormErrors {
     const e: FormErrors = {}
-    if (!firstName.trim()) e.firstName = t('playerForm.errors.required')
-    if (!lastName.trim()) e.lastName = t('playerForm.errors.required')
+    // Name is required UNLESS a TM URL is provided (scraper will extract name)
+    const hasTmUrl = transfermarktUrl.trim().length > 0
+    if (!firstName.trim() && !hasTmUrl) e.firstName = t('playerForm.errors.required')
+    if (!lastName.trim() && !hasTmUrl) e.lastName = t('playerForm.errors.required')
     if (!isValidUrl(fbrefUrl)) e.fbrefUrl = t('playerForm.errors.invalidUrl')
     if (!isValidUrl(transfermarktUrl)) e.transfermarktUrl = t('playerForm.errors.invalidUrl')
     if (!isValidUrl(instagram)) e.instagram = t('playerForm.errors.invalidUrl')
@@ -353,22 +355,22 @@ export function PlayerFormPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <Input
-                label={t('playerForm.fields.fbrefUrl')}
-                type="url"
-                placeholder="https://fbref.com/en/players/..."
-                value={fbrefUrl}
-                onChange={e => setFbrefUrl(e.target.value)}
-                error={errors.fbrefUrl}
-              />
-            </div>
-            <div className="col-span-2">
-              <Input
                 label={t('playerForm.fields.transfermarktUrl')}
                 type="url"
                 placeholder="https://www.transfermarkt.com/..."
                 value={transfermarktUrl}
                 onChange={e => setTransfermarktUrl(e.target.value)}
                 error={errors.transfermarktUrl}
+              />
+            </div>
+            <div className="col-span-2">
+              <Input
+                label={`${t('playerForm.fields.fbrefUrl')} (${t('common.optional', 'optional')})`}
+                type="url"
+                placeholder="https://fbref.com/en/players/..."
+                value={fbrefUrl}
+                onChange={e => setFbrefUrl(e.target.value)}
+                error={errors.fbrefUrl}
               />
             </div>
             <Input
