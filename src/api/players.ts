@@ -99,7 +99,7 @@ export async function getPlayers(): Promise<Player[]> {
   const { data, error } = await supabase
     .from('players')
     .select('*')
-    .order('created_at', { ascending: false })
+    .order('sort_order', { ascending: true })
   if (error) {
     throw error
   }
@@ -107,9 +107,21 @@ export async function getPlayers(): Promise<Player[]> {
 }
 
 export async function addPlayer(player: PlayerInsert): Promise<Player> {
+  // Determine the next sort_order for this user so new players go to the bottom.
+  const addedBy = player.added_by ?? (await supabase.auth.getUser()).data.user?.id
+  const { data: maxRow } = await supabase
+    .from('players')
+    .select('sort_order')
+    .eq('added_by', addedBy)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const sort_order = ((maxRow?.sort_order) ?? -1) + 1
+
   const { data, error } = await supabase
     .from('players')
-    .insert(player)
+    .insert({ ...player, sort_order })
     .select()
     .single()
   if (error) {
@@ -129,6 +141,21 @@ export async function updatePlayer(id: string, updates: PlayerUpdate): Promise<P
     throw error
   }
   return data
+}
+
+/**
+ * Persists manual row-drag reordering.
+ * Fires all updates in parallel — safe for < 500 players.
+ * Called after a debounce so rapid drags don't flood the DB.
+ */
+export async function bulkUpdateSortOrder(
+  updates: { id: string; sort_order: number }[],
+): Promise<void> {
+  await Promise.all(
+    updates.map(({ id, sort_order }) =>
+      supabase.from('players').update({ sort_order }).eq('id', id),
+    ),
+  )
 }
 
 export async function deletePlayer(id: string): Promise<void> {
