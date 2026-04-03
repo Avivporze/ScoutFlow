@@ -11,6 +11,7 @@ import { PlayerNameCell } from './cells/PlayerNameCell'
 import { PositionBadge } from './cells/PositionBadge'
 import { StatusCell } from './cells/StatusCell'
 import { TM_COUNTRY_ISO, LEAGUE_ISO } from '@/lib/countryIso'
+import { positionSortingFn } from '@/lib/positionSort'
 
 // ── Flag Icon ───────────────────────────────────────────────────────────────
 
@@ -119,6 +120,7 @@ export function buildColumns(
     col.accessor('position', {
       header: t('columnHeaders.position'),
       cell: info => <PositionBadge position={info.getValue()} />,
+      sortingFn: positionSortingFn,
     }),
     col.accessor('current_club', {
       header: t('columnHeaders.club'),
