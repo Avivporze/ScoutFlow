@@ -4,7 +4,6 @@ import { parseMarketValue } from '@/lib/marketValueParser'
 
 export interface DashboardStats {
   totalPlayers: number
-  watchlistCount: number
   teamsScouted: number
   countriesScouted: number
 }
@@ -18,7 +17,6 @@ export interface ActivityWithDetails {
 }
 
 export type TopPerformer = Pick<Player, 'id' | 'first_name' | 'last_name' | 'position' | 'current_club' | 'stats_goals' | 'stats_assists'>
-export type RecentProspect = Pick<Player, 'id' | 'first_name' | 'last_name' | 'nationality' | 'date_of_birth' | 'created_at'>
 
 export interface ExpiringContract {
   id: string
@@ -47,15 +45,11 @@ export interface ScoutingGapPlayer {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const [playersResult, watchlistResult, clubResult, nationalityResult] = await Promise.all([
+  const [playersResult, clubResult, nationalityResult] = await Promise.all([
     supabase
       .from('players')
       .select('*', { count: 'exact', head: true })
       .neq('status', 'archived'),
-    supabase
-      .from('players')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'watchlist'),
     supabase
       .from('players')
       .select('current_club')
@@ -68,7 +62,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
       .not('nationality', 'is', null)
   ])
 
-  if (playersResult.error || watchlistResult.error || clubResult.error || nationalityResult.error) {
+  if (playersResult.error || clubResult.error || nationalityResult.error) {
     throw new Error('Failed to fetch dashboard stats.')
   }
 
@@ -86,7 +80,6 @@ export async function getDashboardStats(): Promise<DashboardStats> {
 
   return {
     totalPlayers: playersResult.count ?? 0,
-    watchlistCount: watchlistResult.count ?? 0,
     teamsScouted: uniqueClubs.size,
     countriesScouted: uniqueCountries.size,
   }
@@ -119,17 +112,6 @@ export async function getTopPerformers(limit = 5): Promise<TopPerformer[]> {
   return data as TopPerformer[]
 }
 
-export async function getRecentProspects(limit = 5): Promise<RecentProspect[]> {
-  const { data, error } = await supabase
-    .from('players')
-    .select('id, first_name, last_name, nationality, date_of_birth, created_at')
-    .eq('status', 'watchlist')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-
-  if (error) throw new Error('Failed to fetch recent prospects.')
-  return data as RecentProspect[]
-}
 
 export async function getExpiringContracts(limit = 5): Promise<ExpiringContract[]> {
   const { data, error } = await supabase
@@ -213,25 +195,3 @@ export async function getScoutingGaps(limit = 5): Promise<ScoutingGapPlayer[]> {
   return data as ScoutingGapPlayer[]
 }
 
-export async function getPositionalPipeline(): Promise<{ position: string; count: number }[]> {
-  const { data, error } = await supabase
-    .from('players')
-    .select('position')
-    .neq('status', 'archived')
-    .not('position', 'is', null)
-
-  if (error) throw new Error('Failed to fetch positional pipeline.')
-
-  const counts: Record<string, number> = {}
-  data.forEach((row) => {
-    const pos = row.position?.trim()
-    if (pos) {
-      counts[pos] = (counts[pos] || 0) + 1
-    }
-  })
-
-  // Convert to array and sort by count desc
-  return Object.entries(counts)
-    .map(([position, count]) => ({ position, count }))
-    .sort((a, b) => b.count - a.count)
-}
