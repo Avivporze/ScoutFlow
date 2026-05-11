@@ -159,6 +159,8 @@ The Chrome Extension is the primary data ingestion mechanism. It uses Manifest V
 2. If found, PATCHes the existing record with fresh data.
 3. If not found, INSERTs a new player record.
 
+All Supabase calls go through an internal `authedFetch` wrapper that transparently refreshes the access token on `401` using the stored `refresh_token` and retries the request once. This makes syncs self-healing across Supabase free-tier database hibernations — the user only sees a "Session expired" prompt if the refresh itself fails. Failures surface status-aware messages (`401`, `403`, `409` on duplicate, `5xx`) rather than a single opaque "try again".
+
 No backend proxy, no API keys in the Extension, no separate authentication flow. The Extension is a thin extraction layer that writes through the same authenticated Supabase client the web app uses.
 
 ---

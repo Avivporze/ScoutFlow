@@ -19,6 +19,7 @@
 | 9.0  | 2026-04-03 | Phase 9: Master Grid now exposes all DB fields. Step-by-step scraper rebuild initiated. Superseded by Phase 10. |
 | 10.0 | 2026-04-03 | Phase 10: Total Migration to Transfermarkt. FBref retired. Single-source TM architecture. Auto-create players by URL. |
 | 11.0 | 2026-04-03 | **Architecture finalized. April 2026 Security Audit complete: RLS hardened against role escalation, hardcoded secrets removed. `weight_kg` removed. Best Fit = predefined Israeli Premier League teams. Phase 11 placeholder added.** |
+| 12.0 | 2026-05-11 | Extension background worker hardened against Supabase free-tier DB hibernation: added `authedFetch` wrapper that refreshes the access token on `401` via the stored `refresh_token` and retries once. Helpers now throw status-aware messages (`401` → "Session expired", `409` → duplicate, `5xx` → server). `lookupPlayerByTMUrl` no longer swallows non-2xx responses. |
 
 ---
 
