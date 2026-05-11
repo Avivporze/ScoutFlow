@@ -11,19 +11,106 @@
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// ── Auth ──────────────────────────────────────────────────────────────────────
+// ── Auth & Session Refresh ────────────────────────────────────────────────────
 
-async function getAuthToken(): Promise<string> {
-  const projectRef = new URL(SUPABASE_URL).hostname.split('.')[0];
-  const storageKey = `sb-${projectRef}-auth-token`;
-  const result = await chrome.storage.local.get(storageKey);
-  const raw = result[storageKey];
-  if (!raw) throw new Error('User not logged in — open the ScoutFlow popup to sign in.');
+interface SupabaseSession {
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
+  currentSession?: {
+    access_token?: string;
+    refresh_token?: string;
+    expires_at?: number;
+  };
+}
 
-  const session = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  const token = session?.access_token ?? session?.currentSession?.access_token;
-  if (!token) throw new Error('Session expired — please sign in again.');
-  return token;
+const STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+
+const NOT_SIGNED_IN = 'Not signed in — open the ScoutFlow popup to sign in.';
+const SESSION_EXPIRED = 'Session expired — open the ScoutFlow popup to sign in again.';
+
+async function readSession(): Promise<SupabaseSession | null> {
+  const result = await chrome.storage.local.get(STORAGE_KEY);
+  const raw = result[STORAGE_KEY];
+  if (!raw) return null;
+  return typeof raw === 'string' ? JSON.parse(raw) : raw;
+}
+
+async function writeSession(session: SupabaseSession): Promise<void> {
+  await chrome.storage.local.set({ [STORAGE_KEY]: JSON.stringify(session) });
+}
+
+function extractTokens(s: SupabaseSession | null): { access?: string; refresh?: string } {
+  if (!s) return {};
+  return {
+    access:  s.access_token  ?? s.currentSession?.access_token,
+    refresh: s.refresh_token ?? s.currentSession?.refresh_token,
+  };
+}
+
+async function getAccessToken(): Promise<string> {
+  const { access } = extractTokens(await readSession());
+  if (!access) throw new Error(NOT_SIGNED_IN);
+  return access;
+}
+
+async function refreshAccessToken(): Promise<string> {
+  const session = await readSession();
+  const { refresh } = extractTokens(session);
+  if (!session || !refresh) throw new Error(SESSION_EXPIRED);
+
+  const resp = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ refresh_token: refresh }),
+  });
+  if (!resp.ok) throw new Error(SESSION_EXPIRED);
+
+  const data = await resp.json() as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    expires_at?: number;
+  };
+
+  const target = session.currentSession ?? session;
+  target.access_token  = data.access_token;
+  target.refresh_token = data.refresh_token;
+  target.expires_at    = data.expires_at ?? Math.floor(Date.now() / 1000) + data.expires_in;
+  await writeSession(session);
+
+  return data.access_token;
+}
+
+/**
+ * Adds Supabase auth headers and transparently retries once on 401 by
+ * refreshing the access token via the stored refresh_token. If the refresh
+ * itself fails, throws SESSION_EXPIRED so the toast prompts a manual re-login.
+ */
+async function authedFetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const headersWith = (token: string): HeadersInit => ({
+    ...(init.headers as Record<string, string> | undefined),
+    apikey: SUPABASE_ANON_KEY,
+    Authorization: `Bearer ${token}`,
+  });
+
+  let resp = await fetch(url, { ...init, headers: headersWith(await getAccessToken()) });
+  if (resp.status === 401) {
+    const refreshed = await refreshAccessToken();
+    resp = await fetch(url, { ...init, headers: headersWith(refreshed) });
+  }
+  return resp;
+}
+
+function statusMessage(status: number, action: 'lookup' | 'create' | 'update'): string {
+  if (status === 401) return SESSION_EXPIRED;
+  if (status === 403) return 'Permission denied — your account cannot modify this player.';
+  if (status === 409 && action === 'create') return 'Player already exists in the database.';
+  if (status >= 500) return `Supabase server error (HTTP ${status}) — try again in a moment.`;
+  return `Player ${action} failed (HTTP ${status}).`;
 }
 
 // ── Supabase Helpers ──────────────────────────────────────────────────────────
@@ -32,61 +119,47 @@ interface PlayerLookup {
   id: string;
 }
 
-async function lookupPlayerByTMUrl(tmUrl: string, token: string): Promise<PlayerLookup | null> {
-  const resp = await fetch(
+async function lookupPlayerByTMUrl(tmUrl: string): Promise<PlayerLookup | null> {
+  const resp = await authedFetch(
     `${SUPABASE_URL}/rest/v1/players` +
     `?transfermarkt_url=eq.${encodeURIComponent(tmUrl)}` +
     `&select=id` +
     `&limit=1`,
-    {
-      headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/json',
-      },
-    },
+    { headers: { Accept: 'application/json' } },
   );
-  if (!resp.ok) return null;
+  if (!resp.ok) throw new Error(statusMessage(resp.status, 'lookup'));
   const rows = await resp.json();
   return rows.length > 0 ? rows[0] : null;
 }
 
-async function patchPlayer(id: string, payload: Record<string, unknown>, token: string): Promise<void> {
-  const resp = await fetch(
+async function patchPlayer(id: string, payload: Record<string, unknown>): Promise<void> {
+  const resp = await authedFetch(
     `${SUPABASE_URL}/rest/v1/players?id=eq.${id}`,
     {
       method: 'PATCH',
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         Prefer: 'return=minimal',
       },
       body: JSON.stringify(payload),
     },
   );
-  if (!resp.ok) {
-    throw new Error('Failed to update player. Please try again.');
-  }
+  if (!resp.ok) throw new Error(statusMessage(resp.status, 'update'));
 }
 
-async function createPlayer(payload: Record<string, unknown>, token: string): Promise<string> {
-  const resp = await fetch(
+async function createPlayer(payload: Record<string, unknown>): Promise<string> {
+  const resp = await authedFetch(
     `${SUPABASE_URL}/rest/v1/players`,
     {
       method: 'POST',
       headers: {
-        apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
       },
       body: JSON.stringify(payload),
     },
   );
-  if (!resp.ok) {
-    throw new Error('Failed to create player. Please try again.');
-  }
+  if (!resp.ok) throw new Error(statusMessage(resp.status, 'create'));
   const rows = await resp.json();
   return rows[0]?.id;
 }
@@ -136,27 +209,18 @@ function buildPayload(data: Record<string, unknown>): Record<string, unknown> {
 async function handleSyncPlayer(
   data: Record<string, unknown>,
 ): Promise<{ success: boolean; created?: boolean; error?: string }> {
-  // 1. Auth
-  const token = await getAuthToken();
-
-  // 2. Look up player by transfermarkt_url
   const tmUrl = data.transfermarkt_url as string;
-  const existing = await lookupPlayerByTMUrl(tmUrl, token);
-
-  // 3. Build payload
+  const existing = await lookupPlayerByTMUrl(tmUrl);
   const payload = buildPayload(data);
 
   if (existing) {
-    // 4a. Update existing player
-    await patchPlayer(existing.id, payload, token);
+    await patchPlayer(existing.id, payload);
     return { success: true, created: false };
-  } else {
-    // 4b. Create new player record
-    // Ensure required fields have defaults for INSERT
-    payload.status = 'active';
-    await createPlayer(payload, token);
-    return { success: true, created: true };
   }
+
+  payload.status = 'active';
+  await createPlayer(payload);
+  return { success: true, created: true };
 }
 
 // ── Message Listener ──────────────────────────────────────────────────────────
